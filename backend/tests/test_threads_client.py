@@ -166,3 +166,4 @@ async def test_oauth_callback_flow_stores_encrypted_token(
         )
         assert audit is not None
         assert raw_token not in (audit.detail or "")
+

@@ -128,3 +128,4 @@ class FakeThreadsClient(ThreadsClientProtocol):
             expires_in=5184000,
             user_id=self.user_id,
         )
+

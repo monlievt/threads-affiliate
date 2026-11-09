@@ -105,3 +105,4 @@ async def exchange_code_for_token(code: str) -> tuple[TokenInfo, str]:
         )
 
         return token_info, user_id
+

@@ -243,3 +243,4 @@ class ThreadsHttpClient(ThreadsClientProtocol):
         except Exception as exc:
             logger.error("Failed to refresh Threads long-lived token")
             raise ThreadsApiError("Token refresh network request failed") from exc
+

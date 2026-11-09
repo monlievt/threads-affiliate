@@ -61,3 +61,4 @@ class ThreadsClientProtocol(Protocol):
     async def refresh_token(self) -> TokenInfo:
         """Refresh long-lived access token before expiration."""
         ...
+
