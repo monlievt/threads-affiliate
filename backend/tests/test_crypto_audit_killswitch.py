@@ -192,3 +192,4 @@ async def test_kill_switch_api_endpoints(client: AsyncClient, db_session: AsyncS
     resp_health = await client.get("/health")
     assert resp_health.status_code == 200
     assert resp_health.json()["kill_switch"] == "off"
+

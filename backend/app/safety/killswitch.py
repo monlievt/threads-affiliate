@@ -178,3 +178,4 @@ async def ensure_kill_switch_initialized(session: AsyncSession) -> None:
             detail={"value": initial_value, "reason": initial_reason},
         )
         logger.info("Kill switch initialized in system_state", initial_value=initial_value)
+

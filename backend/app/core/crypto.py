@@ -83,3 +83,4 @@ def decrypt_token(ciphertext: bytes) -> str:
     except InvalidToken as exc:
         logger.error("Token decryption failed: invalid token or mismatched encryption key")
         raise ValueError("Decryption failed: invalid ciphertext or mismatched key") from exc
+

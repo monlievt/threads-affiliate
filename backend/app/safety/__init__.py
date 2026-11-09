@@ -13,3 +13,4 @@ __all__ = [
     "is_kill_switch_active",
     "set_kill_switch",
 ]
+

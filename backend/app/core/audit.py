@@ -107,3 +107,4 @@ async def get_recent_audit_logs(
 
     result = await session.scalars(stmt)
     return list(result.all())
+
