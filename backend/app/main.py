@@ -102,6 +102,40 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
+
+# ---------------------------------------------------------------------------
+# Security Headers Middleware (T-052)
+# ---------------------------------------------------------------------------
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Inject strict security headers into all responses."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Global 500 Exception Handler — Prevents stack trace / secret leak (T-052)
+# ---------------------------------------------------------------------------
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Safe unhandled exception handler that never leaks server secrets."""
+    log.error("Unhandled server exception", path=request.url.path, error=str(exc))
+    if settings.is_production:
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error. The incident has been recorded."},
+        )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {exc}"},
+    )
+
+
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------

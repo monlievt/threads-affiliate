@@ -5,6 +5,11 @@
 
 # Data directory (SQLite + WAL files)
 data/
+backup/
+*.db
+*.db-wal
+*.db-shm
+*.db.sha256
 
 # Python
 __pycache__/
