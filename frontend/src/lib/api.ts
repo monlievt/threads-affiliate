@@ -3,10 +3,25 @@
  */
 
 import {
+  CSVImportRowError,
   DraftItem,
   KillSwitchStatus,
+  NicheCreatePayload,
+  NicheItem,
+  NicheUpdatePayload,
+  PersonaCreatePayload,
+  PersonaItem,
+  PersonaUpdatePayload,
+  ProductCreatePayload,
+  ProductImportResponse,
+  ProductItem,
+  ProductUpdatePayload,
   RealtimeValidationResponse,
+  StyleCreatePayload,
+  StyleItem,
+  StyleUpdatePayload,
   SystemHealth,
+  ValidateUrlResponse,
 } from "@/types";
 
 function getCookie(name: string): string | null {
@@ -130,5 +145,151 @@ export async function validateTextRealtime(payload: {
   return fetchApi<RealtimeValidationResponse>(`/api/drafts/validate-text`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Catalog: Niches API
+ */
+export async function getNiches(includeArchived: boolean = false): Promise<NicheItem[]> {
+  const q = includeArchived ? "?include_archived=true" : "";
+  return fetchApi<NicheItem[]>(`/api/niches${q}`);
+}
+
+export async function createNiche(payload: NicheCreatePayload): Promise<NicheItem> {
+  return fetchApi<NicheItem>("/api/niches", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateNiche(id: string, payload: NicheUpdatePayload): Promise<NicheItem> {
+  return fetchApi<NicheItem>(`/api/niches/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function archiveNiche(id: string): Promise<NicheItem> {
+  return fetchApi<NicheItem>(`/api/niches/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/**
+ * Catalog: Products API
+ */
+export async function getProducts(params?: {
+  niche_id?: string;
+  status?: string;
+  include_archived?: boolean;
+  limit?: number;
+  offset?: number;
+}): Promise<ProductItem[]> {
+  const q = new URLSearchParams();
+  if (params?.niche_id) q.set("niche_id", params.niche_id);
+  if (params?.status) q.set("status", params.status);
+  if (params?.include_archived) q.set("include_archived", "true");
+  if (params?.limit) q.set("limit", params.limit.toString());
+  if (params?.offset) q.set("offset", params.offset.toString());
+
+  const queryStr = q.toString() ? `?${q.toString()}` : "";
+  return fetchApi<ProductItem[]>(`/api/products${queryStr}`);
+}
+
+export async function createProduct(payload: ProductCreatePayload): Promise<ProductItem> {
+  return fetchApi<ProductItem>("/api/products", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateProduct(id: string, payload: ProductUpdatePayload): Promise<ProductItem> {
+  return fetchApi<ProductItem>(`/api/products/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function archiveProduct(id: string): Promise<ProductItem> {
+  return fetchApi<ProductItem>(`/api/products/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function previewProductsCSV(csvContent: string): Promise<ProductImportResponse> {
+  return fetchApi<ProductImportResponse>("/api/products/preview-csv", {
+    method: "POST",
+    body: JSON.stringify({ csv_content: csvContent }),
+  });
+}
+
+export async function importProductsCSV(csvContent: string): Promise<ProductImportResponse> {
+  return fetchApi<ProductImportResponse>("/api/products/import-csv", {
+    method: "POST",
+    body: JSON.stringify({ csv_content: csvContent }),
+  });
+}
+
+export async function validateProductUrl(url: string): Promise<ValidateUrlResponse> {
+  return fetchApi<ValidateUrlResponse>("/api/products/validate-url", {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+}
+
+/**
+ * Catalog: Styles API
+ */
+export async function getStyles(includeArchived: boolean = false): Promise<StyleItem[]> {
+  const q = includeArchived ? "?include_archived=true" : "";
+  return fetchApi<StyleItem[]>(`/api/styles${q}`);
+}
+
+export async function createStyle(payload: StyleCreatePayload): Promise<StyleItem> {
+  return fetchApi<StyleItem>("/api/styles", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateStyle(id: string, payload: StyleUpdatePayload): Promise<StyleItem> {
+  return fetchApi<StyleItem>(`/api/styles/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function archiveStyle(id: string): Promise<StyleItem> {
+  return fetchApi<StyleItem>(`/api/styles/${id}`, {
+    method: "DELETE",
+  });
+}
+
+/**
+ * Catalog: Personas API
+ */
+export async function getPersonas(accountId?: string): Promise<PersonaItem[]> {
+  const q = accountId ? `?account_id=${accountId}` : "";
+  return fetchApi<PersonaItem[]>(`/api/personas${q}`);
+}
+
+export async function createPersona(payload: PersonaCreatePayload): Promise<PersonaItem> {
+  return fetchApi<PersonaItem>("/api/personas", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updatePersona(id: string, payload: PersonaUpdatePayload): Promise<PersonaItem> {
+  return fetchApi<PersonaItem>(`/api/personas/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function archivePersona(id: string): Promise<PersonaItem> {
+  return fetchApi<PersonaItem>(`/api/personas/${id}`, {
+    method: "DELETE",
   });
 }

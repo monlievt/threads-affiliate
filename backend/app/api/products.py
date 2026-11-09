@@ -44,6 +44,8 @@ from app.schemas.catalog import (
     ProductImportResponse,
     ProductResponse,
     ProductUpdate,
+    ValidateUrlRequest,
+    ValidateUrlResponse,
 )
 
 router = APIRouter(prefix="/api/products", tags=["products"])
@@ -279,13 +281,14 @@ async def delete_product(
 
 
 # ---------------------------------------------------------------------------
-# CSV Importer
+# CSV Importer & Validator Endpoints
 # ---------------------------------------------------------------------------
 async def _parse_and_import_csv(
     csv_text: str,
     session: AsyncSession,
+    dry_run: bool = False,
 ) -> ProductImportResponse:
-    """Parse CSV text, enforce safety rules, and insert valid products."""
+    """Parse CSV text, enforce safety rules, and insert valid products (or preview if dry_run=True)."""
     # Pre-load all niches into a lookup cache (by ID and lowercased name)
     niches_res = await session.execute(select(Niche).where(Niche.status != "archived"))
     active_niches = niches_res.scalars().all()
@@ -298,6 +301,7 @@ async def _parse_and_import_csv(
             total_rows=0,
             imported_count=0,
             failed_count=0,
+            is_preview=dry_run,
             errors=[CSVImportRowError(row=0, reason="Empty CSV file or missing headers.")],
         )
 
@@ -311,6 +315,7 @@ async def _parse_and_import_csv(
             total_rows=0,
             imported_count=0,
             failed_count=0,
+            is_preview=dry_run,
             errors=[
                 CSVImportRowError(
                     row=0,
@@ -336,6 +341,7 @@ async def _parse_and_import_csv(
             total_rows=0,
             imported_count=0,
             failed_count=0,
+            is_preview=dry_run,
             errors=[CSVImportRowError(row=0, reason=f"Missing required columns in CSV header: {', '.join(missing)}.")],
         )
 
@@ -401,10 +407,18 @@ async def _parse_and_import_csv(
             tags=json.dumps(tags_list) if tags_list else None,
             status="active",
         )
-        session.add(prod)
+        prod.niche = matched_niche
+
+        if dry_run:
+            prod.id = f"preview_{row_idx}"
+            prod.created_at = utc_now_iso()
+            prod.updated_at = utc_now_iso()
+        else:
+            session.add(prod)
+
         imported.append(prod)
 
-    if imported:
+    if not dry_run and imported:
         await session.commit()
         for p in imported:
             await session.refresh(p)
@@ -413,9 +427,39 @@ async def _parse_and_import_csv(
         total_rows=total_rows,
         imported_count=len(imported),
         failed_count=len(errors),
+        is_preview=dry_run,
         errors=errors,
-        imported_products=[ProductResponse.from_orm_model(p) for p in imported],
+        imported_products=[ProductResponse.from_orm_model(p, niche_name=p.niche.name if getattr(p, "niche", None) else None) for p in imported],
     )
+
+
+@router.post("/preview-csv", response_model=ProductImportResponse)
+async def preview_products_csv(
+    file: UploadFile | None = File(default=None),
+    csv_content: str | None = Body(default=None, embed=True),
+    session: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(get_current_admin),  # noqa: ARG001
+) -> ProductImportResponse:
+    """Dry-run preview of CSV product import with per-row validation and error reporting.
+
+    Does not commit any records to the database.
+    """
+    raw_text = ""
+    if file:
+        content_bytes = await file.read()
+        try:
+            raw_text = content_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            raw_text = content_bytes.decode("latin-1")
+    elif csv_content:
+        raw_text = csv_content
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either a CSV file or csv_content text must be provided.",
+        )
+
+    return await _parse_and_import_csv(raw_text, session, dry_run=True)
 
 
 @router.post("/import-csv", response_model=ProductImportResponse)
@@ -445,7 +489,7 @@ async def import_products_csv(
             detail="Either a CSV file or csv_content text must be provided.",
         )
 
-    result = await _parse_and_import_csv(raw_text, session)
+    result = await _parse_and_import_csv(raw_text, session, dry_run=False)
 
     # Log audit event
     await record_audit_log(
@@ -461,3 +505,18 @@ async def import_products_csv(
     )
 
     return result
+
+
+@router.post("/validate-url", response_model=ValidateUrlResponse)
+async def validate_url_endpoint(
+    payload: ValidateUrlRequest,
+    admin: dict[str, Any] = Depends(get_current_admin),  # noqa: ARG001
+) -> ValidateUrlResponse:
+    """Validate that a URL complies with the Benable allowlist domain policy."""
+    valid, err = validate_product_benable_url(payload.url)
+    return ValidateUrlResponse(
+        url=payload.url,
+        valid=valid,
+        error=err,
+        normalized_url=payload.url.strip() if valid else None,
+    )

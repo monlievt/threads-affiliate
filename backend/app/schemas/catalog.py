@@ -151,8 +151,20 @@ class ProductImportResponse(BaseModel):
     total_rows: int
     imported_count: int
     failed_count: int
+    is_preview: bool = False
     errors: list[CSVImportRowError] = Field(default_factory=list)
     imported_products: list[ProductResponse] = Field(default_factory=list)
+
+
+class ValidateUrlRequest(BaseModel):
+    url: str = Field(..., description="URL to validate for Benable allowlist")
+
+
+class ValidateUrlResponse(BaseModel):
+    url: str
+    valid: bool
+    error: str | None = None
+    normalized_url: str | None = None
 
 
 # ---------------------------------------------------------------------------
