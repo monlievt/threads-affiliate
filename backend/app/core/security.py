@@ -234,3 +234,4 @@ def require_csrf(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid or missing CSRF token",
         )
+

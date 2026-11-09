@@ -159,3 +159,4 @@ async def test_logout(client: AsyncClient) -> None:
     response = await client.post("/api/auth/logout")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
