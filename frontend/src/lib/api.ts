@@ -35,6 +35,17 @@ import {
   SystemHealth,
   ValidateSlotResponse,
   ValidateUrlResponse,
+  AccountSnapshotItem,
+  AnalyticsOverviewResponse,
+  CollectMetricsResponse,
+  LinkClickItem,
+  LinkClickListResponse,
+  ClickImportResponse,
+  ExperimentItem,
+  ExperimentProgressResponse,
+  AllocateNextArmResponse,
+  ExperimentEvaluationResponse,
+  WeeklyReportResponse,
 } from "@/types";
 
 function getCookie(name: string): string | null {
@@ -419,3 +430,143 @@ export async function publishOrCopyComment(
     body: JSON.stringify(payload),
   });
 }
+
+/**
+ * Analytics & Post Metrics API (T-040 & T-041)
+ */
+export async function getAnalyticsOverview(limitRecent: number = 50): Promise<AnalyticsOverviewResponse> {
+  return fetchApi<AnalyticsOverviewResponse>(`/api/analytics/overview?limit_recent=${limitRecent}`);
+}
+
+export async function getAccountGrowth(limit: number = 30): Promise<AccountSnapshotItem[]> {
+  return fetchApi<AccountSnapshotItem[]>(`/api/analytics/account-growth?limit=${limit}`);
+}
+
+export async function triggerCollectMetrics(): Promise<CollectMetricsResponse> {
+  return fetchApi<CollectMetricsResponse>("/api/analytics/collect-now", {
+    method: "POST",
+  });
+}
+
+export async function getLinkClicks(
+  productId?: string,
+  postId?: string,
+  startDate?: string,
+  endDate?: string
+): Promise<LinkClickListResponse> {
+  const q = new URLSearchParams();
+  if (productId) q.set("product_id", productId);
+  if (postId) q.set("post_id", postId);
+  if (startDate) q.set("start_date", startDate);
+  if (endDate) q.set("end_date", endDate);
+  return fetchApi<LinkClickListResponse>(`/api/analytics/clicks?${q.toString()}`);
+}
+
+export async function createLinkClickManual(payload: {
+  product_id?: string | null;
+  post_id?: string | null;
+  period_start: string;
+  period_end: string;
+  clicks: number;
+  source?: string;
+  note?: string | null;
+}): Promise<LinkClickItem> {
+  return fetchApi<LinkClickItem>("/api/analytics/clicks", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function previewClicksCsv(csvContent: string): Promise<ClickImportResponse> {
+  return fetchApi<ClickImportResponse>("/api/analytics/clicks/preview-csv", {
+    method: "POST",
+    body: JSON.stringify({ csv_content: csvContent }),
+  });
+}
+
+export async function importClicksCsv(csvContent: string): Promise<ClickImportResponse> {
+  return fetchApi<ClickImportResponse>("/api/analytics/clicks/import-csv", {
+    method: "POST",
+    body: JSON.stringify({ csv_content: csvContent }),
+  });
+}
+
+export async function deleteLinkClick(clickId: string): Promise<{ deleted: boolean; id: string }> {
+  return fetchApi<{ deleted: boolean; id: string }>(`/api/analytics/clicks/${clickId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getWeeklyReport(days: number = 7): Promise<WeeklyReportResponse> {
+  return fetchApi<WeeklyReportResponse>(`/api/analytics/weekly-report?days=${days}`);
+}
+
+/**
+ * Experiments API (T-042 & T-043)
+ */
+export async function getExperiments(
+  phase?: string,
+  status?: string
+): Promise<ExperimentItem[]> {
+  const q = new URLSearchParams();
+  if (phase) q.set("phase", phase);
+  if (status) q.set("status", status);
+  return fetchApi<ExperimentItem[]>(`/api/experiments?${q.toString()}`);
+}
+
+export async function getExperimentDetails(experimentId: string): Promise<ExperimentItem> {
+  return fetchApi<ExperimentItem>(`/api/experiments/${experimentId}`);
+}
+
+export async function createExperiment(payload: {
+  name: string;
+  phase: string;
+  start_date: string;
+  end_date?: string | null;
+  config?: Record<string, any>;
+  arms: Array<{
+    label: string;
+    target_posts: number;
+    niche_id?: string | null;
+    style_id?: string | null;
+  }>;
+}): Promise<ExperimentItem> {
+  return fetchApi<ExperimentItem>("/api/experiments", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateExperimentStatus(
+  experimentId: string,
+  newStatus: string
+): Promise<ExperimentItem> {
+  return fetchApi<ExperimentItem>(`/api/experiments/${experimentId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status_update: newStatus }),
+  });
+}
+
+export async function getExperimentProgress(
+  experimentId: string
+): Promise<ExperimentProgressResponse> {
+  return fetchApi<ExperimentProgressResponse>(`/api/experiments/${experimentId}/progress`);
+}
+
+export async function getExperimentEvaluation(
+  experimentId: string
+): Promise<ExperimentEvaluationResponse> {
+  return fetchApi<ExperimentEvaluationResponse>(`/api/experiments/${experimentId}/evaluation`);
+}
+
+export async function allocateNextArm(
+  experimentId: string,
+  lastArmId?: string | null,
+  lastNicheId?: string | null
+): Promise<AllocateNextArmResponse> {
+  return fetchApi<AllocateNextArmResponse>(`/api/experiments/${experimentId}/allocate-next`, {
+    method: "POST",
+    body: JSON.stringify({ last_arm_id: lastArmId, last_niche_id: lastNicheId }),
+  });
+}
+
