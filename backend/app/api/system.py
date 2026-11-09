@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.core.audit import get_recent_audit_logs
 from app.core.security import get_current_admin, require_csrf
+from app.db.models import Account
 from app.db.session import AsyncSessionLocal, check_db_connection, get_db
 from app.safety.killswitch import (
     get_kill_switch_status,
@@ -26,6 +27,7 @@ from app.safety.killswitch import (
     set_kill_switch,
 )
 from app.scheduler.heartbeat import get_worker_heartbeat_info
+from app.threads.token_service import get_token_status
 
 router = APIRouter(tags=["system"])
 
@@ -53,6 +55,7 @@ async def health_check() -> JSONResponse:
 
     kill_switch_status = "on"
     hb_age_sec: float | None = None
+    token_valid: bool | None = None
 
     if db_ok:
         try:
@@ -61,6 +64,14 @@ async def health_check() -> JSONResponse:
                 kill_switch_status = "on" if active else "off"
                 hb_info = await get_worker_heartbeat_info(session)
                 hb_age_sec = hb_info.get("age_seconds")
+
+                acc_res = await session.execute(
+                    select(Account).where(Account.token_encrypted.isnot(None)).limit(1)
+                )
+                acc = acc_res.scalar_one_or_none()
+                if acc:
+                    t_status = get_token_status(acc)
+                    token_valid = t_status["valid"]
         except Exception:
             kill_switch_status = "on" if settings.KILL_SWITCH_ON_START else "off"
     else:
@@ -73,7 +84,7 @@ async def health_check() -> JSONResponse:
         "status": overall,
         "db": db_status,
         "worker_heartbeat_age_sec": hb_age_sec,
-        "token_valid": None,
+        "token_valid": token_valid,
         "kill_switch": kill_switch_status,
         "quota_today": None,
     }

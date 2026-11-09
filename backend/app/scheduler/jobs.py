@@ -12,6 +12,7 @@ from app.db.models import Draft
 from app.scheduler.heartbeat import record_worker_heartbeat
 from app.scheduler.lock import renew_worker_lock
 from app.scheduler.planner import plan_and_schedule_approved_drafts
+from app.threads.token_service import check_and_refresh_all_accounts
 
 log = get_logger(__name__)
 
@@ -62,3 +63,15 @@ async def get_due_scheduled_drafts(
     )
     result = await session.execute(query)
     return list(result.scalars().all())
+
+
+async def job_refresh_tokens(
+    session: AsyncSession,
+    threshold_days: int = 15,
+) -> dict[str, Any]:
+    """Periodic job: checks accounts and refreshes tokens near expiration."""
+    try:
+        return await check_and_refresh_all_accounts(session, threshold_days=threshold_days)
+    except Exception as exc:
+        log.error("Error running token refresher job", error=str(exc))
+        return {"error": str(exc)}
