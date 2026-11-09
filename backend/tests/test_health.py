@@ -33,3 +33,4 @@ async def test_health_check_db_failure(client: AsyncClient) -> None:
         assert data["status"] == "down"
         assert data["db"] == "error"
         assert data["kill_switch"] == "on"
+

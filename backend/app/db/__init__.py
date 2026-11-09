@@ -1,1 +1,45 @@
-"""app/db/__init__.py"""
+"""app/db/__init__.py — Database package."""
+
+from app.db.models import (
+    Account,
+    AccountSnapshot,
+    AuditLog,
+    Base,
+    Draft,
+    Experiment,
+    ExperimentArm,
+    Incident,
+    JobLock,
+    LinkClick,
+    LlmUsage,
+    Niche,
+    Persona,
+    Post,
+    PostMetric,
+    Product,
+    Setting,
+    Style,
+    SystemState,
+)
+
+__all__ = [
+    "Account",
+    "AccountSnapshot",
+    "AuditLog",
+    "Base",
+    "Draft",
+    "Experiment",
+    "ExperimentArm",
+    "Incident",
+    "JobLock",
+    "LinkClick",
+    "LlmUsage",
+    "Niche",
+    "Persona",
+    "Post",
+    "PostMetric",
+    "Product",
+    "Setting",
+    "Style",
+    "SystemState",
+]
