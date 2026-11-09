@@ -25,6 +25,7 @@ from app.api.niches import router as niches_router
 from app.api.oauth import router as oauth_router
 from app.api.personas import router as personas_router
 from app.api.products import router as products_router
+from app.api.schedule import router as schedule_router
 from app.api.styles import router as styles_router
 from app.api.system import router as system_router
 from app.config import settings
@@ -109,3 +110,4 @@ app.include_router(products_router)
 app.include_router(styles_router)
 app.include_router(personas_router)
 app.include_router(drafts_router)
+app.include_router(schedule_router)

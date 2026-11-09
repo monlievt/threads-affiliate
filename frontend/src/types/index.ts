@@ -250,3 +250,72 @@ export interface PersonaUpdatePayload {
   disclosure_position?: "end" | "beginning" | "reply";
   status?: "active" | "paused" | "archived";
 }
+
+// ---------------------------------------------------------------------------
+// Schedule & Calendar
+// ---------------------------------------------------------------------------
+export interface CalendarSlot {
+  id: string;
+  draft_id: string;
+  status: string;
+  scheduled_at_utc: string;
+  scheduled_at_target: string;
+  scheduled_at_operator: string;
+  hour_target: number;
+  minute_target: number;
+  text_snippet: string;
+  niche_name: string | null;
+  style_name: string | null;
+  product_title: string | null;
+}
+
+export interface CalendarDay {
+  date: string;
+  day_name: string;
+  is_today: boolean;
+  scheduled_count: number;
+  published_count: number;
+  max_posts: number;
+  remaining_quota: number;
+  is_quota_full: boolean;
+  slots: CalendarSlot[];
+}
+
+export interface GovernorRulesSummary {
+  target_timezone: string;
+  operator_timezone: string;
+  active_hours_start: number;
+  active_hours_end: number;
+  active_hours_label: string;
+  operator_active_hours_label: string;
+  min_interval_minutes: number;
+  warmup_tier_label: string;
+  max_posts_per_day: number;
+}
+
+export interface CalendarResponse {
+  start_date: string;
+  end_date: string;
+  days: CalendarDay[];
+  governor: GovernorRulesSummary;
+}
+
+export interface MoveSlotResponse {
+  success: boolean;
+  draft_id: string;
+  new_scheduled_at_utc: string;
+  new_scheduled_at_target: string;
+  new_scheduled_at_operator: string;
+  status: string;
+  message: string;
+}
+
+export interface ValidateSlotResponse {
+  valid: boolean;
+  reason: string | null;
+  target_time_formatted: string;
+  operator_time_formatted: string;
+  is_active_hours: boolean;
+  violates_interval?: boolean;
+  violates_quota?: boolean;
+}

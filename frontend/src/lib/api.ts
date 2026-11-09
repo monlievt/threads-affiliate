@@ -3,9 +3,11 @@
  */
 
 import {
+  CalendarResponse,
   CSVImportRowError,
   DraftItem,
   KillSwitchStatus,
+  MoveSlotResponse,
   NicheCreatePayload,
   NicheItem,
   NicheUpdatePayload,
@@ -21,6 +23,7 @@ import {
   StyleItem,
   StyleUpdatePayload,
   SystemHealth,
+  ValidateSlotResponse,
   ValidateUrlResponse,
 } from "@/types";
 
@@ -291,5 +294,42 @@ export async function updatePersona(id: string, payload: PersonaUpdatePayload): 
 export async function archivePersona(id: string): Promise<PersonaItem> {
   return fetchApi<PersonaItem>(`/api/personas/${id}`, {
     method: "DELETE",
+  });
+}
+
+/**
+ * Schedule & Calendar API
+ */
+export async function getScheduleCalendar(
+  startDate?: string,
+  daysCount: number = 7
+): Promise<CalendarResponse> {
+  const q = new URLSearchParams();
+  if (startDate) q.set("start_date", startDate);
+  if (daysCount) q.set("days_count", daysCount.toString());
+  const queryStr = q.toString() ? `?${q.toString()}` : "";
+  return fetchApi<CalendarResponse>(`/api/schedule/calendar${queryStr}`);
+}
+
+export async function moveScheduleSlot(
+  draftId: string,
+  newScheduledAt: string
+): Promise<MoveSlotResponse> {
+  return fetchApi<MoveSlotResponse>("/api/schedule/move-slot", {
+    method: "POST",
+    body: JSON.stringify({ draft_id: draftId, new_scheduled_at: newScheduledAt }),
+  });
+}
+
+export async function validateScheduleSlot(
+  draftId: string | null,
+  candidateScheduledAt: string
+): Promise<ValidateSlotResponse> {
+  return fetchApi<ValidateSlotResponse>("/api/schedule/validate-slot", {
+    method: "POST",
+    body: JSON.stringify({
+      draft_id: draftId,
+      candidate_scheduled_at: candidateScheduledAt,
+    }),
   });
 }
