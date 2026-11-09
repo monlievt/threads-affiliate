@@ -30,6 +30,7 @@ from app.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.db.session import AsyncSessionLocal
 from app.safety.killswitch import ensure_kill_switch_initialized
+from app.scheduler.reconciliation import run_startup_reconciliation
 
 # ---------------------------------------------------------------------------
 # Logging — configure before any logger usage
@@ -49,12 +50,13 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan: startup → yield → shutdown."""
-    # Ensure kill switch is initialized in database
+    # Ensure kill switch is initialized in database and run startup reconciliation
     try:
         async with AsyncSessionLocal() as session:
             await ensure_kill_switch_initialized(session)
+            await run_startup_reconciliation(session)
     except Exception as exc:
-        log.warning("Could not initialize kill switch in DB during startup", error=str(exc))
+        log.warning("Could not initialize kill switch or run startup reconciliation in DB", error=str(exc))
 
     # Startup logging
     if settings.KILL_SWITCH_ON_START:

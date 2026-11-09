@@ -20,12 +20,17 @@ from app.scheduler.planner import (
     find_next_valid_slot,
     plan_and_schedule_approved_drafts,
 )
+from app.scheduler.reconciliation import (
+    expire_stale_drafts,
+    run_startup_reconciliation,
+)
 from app.scheduler.worker import WorkerService
 
 __all__ = [
     "WorkerService",
     "acquire_worker_lock",
     "clamp_to_active_hours",
+    "expire_stale_drafts",
     "find_next_valid_slot",
     "get_due_scheduled_drafts",
     "get_worker_heartbeat_info",
@@ -36,4 +41,5 @@ __all__ = [
     "record_worker_heartbeat",
     "release_worker_lock",
     "renew_worker_lock",
+    "run_startup_reconciliation",
 ]

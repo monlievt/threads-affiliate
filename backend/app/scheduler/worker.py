@@ -19,6 +19,7 @@ from app.scheduler.lock import (
     release_worker_lock,
     renew_worker_lock,
 )
+from app.scheduler.reconciliation import run_startup_reconciliation
 
 log = get_logger(__name__)
 
@@ -73,6 +74,8 @@ class WorkerService:
 
             self._lock_held = True
             await record_worker_heartbeat(session, self.worker_id)
+            # Run startup reconciliation and 48h expiration check
+            await run_startup_reconciliation(session)
 
         self._is_running = True
         log.info("Worker started successfully", worker_id=self.worker_id)

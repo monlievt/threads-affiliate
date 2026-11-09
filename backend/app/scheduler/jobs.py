@@ -12,6 +12,7 @@ from app.db.models import Draft
 from app.scheduler.heartbeat import record_worker_heartbeat
 from app.scheduler.lock import renew_worker_lock
 from app.scheduler.planner import plan_and_schedule_approved_drafts
+from app.scheduler.reconciliation import expire_stale_drafts
 from app.threads.token_service import check_and_refresh_all_accounts
 
 log = get_logger(__name__)
@@ -75,3 +76,15 @@ async def job_refresh_tokens(
     except Exception as exc:
         log.error("Error running token refresher job", error=str(exc))
         return {"error": str(exc)}
+
+
+async def job_expire_stale_drafts(
+    session: AsyncSession,
+    max_age_hours: int = 48,
+) -> list[str]:
+    """Periodic job: marks unreviewed drafts older than 48 hours as 'expired'."""
+    try:
+        return await expire_stale_drafts(session, max_age_hours=max_age_hours)
+    except Exception as exc:
+        log.error("Error running draft expiration job", error=str(exc))
+        return []
