@@ -25,6 +25,7 @@ from app.safety.killswitch import (
     is_kill_switch_active,
     set_kill_switch,
 )
+from app.scheduler.heartbeat import get_worker_heartbeat_info
 
 router = APIRouter(tags=["system"])
 
@@ -51,11 +52,15 @@ async def health_check() -> JSONResponse:
     db_status = "ok" if db_ok else "error"
 
     kill_switch_status = "on"
+    hb_age_sec: float | None = None
+
     if db_ok:
         try:
             async with AsyncSessionLocal() as session:
                 active = await is_kill_switch_active(session)
                 kill_switch_status = "on" if active else "off"
+                hb_info = await get_worker_heartbeat_info(session)
+                hb_age_sec = hb_info.get("age_seconds")
         except Exception:
             kill_switch_status = "on" if settings.KILL_SWITCH_ON_START else "off"
     else:
@@ -67,7 +72,7 @@ async def health_check() -> JSONResponse:
     payload = {
         "status": overall,
         "db": db_status,
-        "worker_heartbeat_age_sec": None,
+        "worker_heartbeat_age_sec": hb_age_sec,
         "token_valid": None,
         "kill_switch": kill_switch_status,
         "quota_today": None,
