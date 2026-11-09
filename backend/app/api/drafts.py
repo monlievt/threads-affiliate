@@ -358,7 +358,7 @@ async def validate_text_realtime(
         )
 
     return ValidateTextResponse(
-        valid=report.valid,
+        valid=report.passed,
         char_count=len(payload.text),
         max_chars=max_chars,
         failed_codes=report.failed_codes,

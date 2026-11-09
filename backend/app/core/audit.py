@@ -90,6 +90,11 @@ async def record_audit(
     return entry
 
 
+# Semantic alias matching codebase convention
+record_audit_log = record_audit
+
+
+
 async def get_recent_audit_logs(
     session: AsyncSession,
     *,

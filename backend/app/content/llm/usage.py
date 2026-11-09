@@ -32,6 +32,13 @@ async def get_daily_llm_usage(
     return record.calls if record else 0
 
 
+async def get_today_call_count(session: AsyncSession, model: str | None = None) -> int:
+    """Helper to retrieve today's call count for default configured LLM model."""
+    target_model = model or settings.GEMINI_MODEL_TEXT
+    return await get_daily_llm_usage(session, target_model)
+
+
+
 async def check_and_increment_llm_budget(
     session: AsyncSession,
     model: str,

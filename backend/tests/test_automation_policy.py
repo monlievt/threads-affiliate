@@ -35,8 +35,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.content.engine import ContentEngine
 from app.content.llm.fake import FakeLLMProvider
 from app.core.clock import utc_now, utc_now_iso
-from app.core.security import CSRF_COOKIE_NAME, SESSION_COOKIE_NAME, create_session_token, encrypt_token
-from app.db.models import Account, AuditLog, Draft, Incident, Niche, Persona, Product, Style, WorkerHeartbeat
+from app.core.crypto import encrypt_token
+from app.core.security import CSRF_COOKIE_NAME, SESSION_COOKIE_NAME, create_session_token
+from app.db.models import Account, AuditLog, Draft, Incident, Niche, Persona, Product, Style
+from app.scheduler.heartbeat import record_worker_heartbeat
 from app.safety.automation_policy import (
     determine_draft_initial_status,
     evaluate_auto_downgrade,
@@ -212,11 +214,7 @@ async def test_full_auto_eligibility_all_criteria(db_session: AsyncSession) -> N
     assert res_fresh.criteria["operator_rejection_rate"].passed is False
 
     # 2. Add healthy heartbeat
-    hb = WorkerHeartbeat(
-        worker_id="test_worker_1",
-        captured_at=now.isoformat(),
-    )
-    db_session.add(hb)
+    await record_worker_heartbeat(db_session, "test_worker_1")
 
     # 3. Add 45 approved drafts (low operator rejection < 15%)
     # and 45 total generated with 0 auto rejected (< 2%)

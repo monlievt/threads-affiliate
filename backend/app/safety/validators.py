@@ -39,6 +39,10 @@ class ValidatorReport(BaseModel):
     failed_codes: list[str] = Field(default_factory=list)
     results: dict[str, ValidationResult] = Field(default_factory=dict)
 
+    @property
+    def valid(self) -> bool:
+        return self.passed
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "passed": self.passed,

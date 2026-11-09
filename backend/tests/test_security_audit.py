@@ -13,8 +13,14 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+import sys
 import pytest
 from httpx import AsyncClient
+
+# Ensure root workspace is in sys.path so ops module can be loaded
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from app.core.logging import (
     _scrub_sensitive_processor,

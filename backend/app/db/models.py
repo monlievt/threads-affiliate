@@ -11,6 +11,7 @@ import uuid
 
 from sqlalchemy import (
     CheckConstraint,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -44,6 +45,8 @@ class Account(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
     threads_user_id: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     username: Mapped[str | None] = mapped_column(String, nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="active")
     country_code: Mapped[str] = mapped_column(String, nullable=False, default="US")
     timezone: Mapped[str] = mapped_column(String, nullable=False, default="America/New_York")
     active_hours_start: Mapped[int] = mapped_column(Integer, nullable=False, default=9)
@@ -148,8 +151,8 @@ class Style(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False)
-    tone_rules: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True, default="")
+    tone_rules: Mapped[str | None] = mapped_column(Text, nullable=True, default="")
     max_chars: Mapped[int] = mapped_column(Integer, nullable=False, default=400)
     good_examples: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array string
     bad_examples: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON array string
@@ -173,16 +176,18 @@ class Persona(Base):
     __tablename__ = "personas"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
-    account_id: Mapped[str] = mapped_column(String, ForeignKey("accounts.id"), nullable=False)
+    account_id: Mapped[str | None] = mapped_column(String, ForeignKey("accounts.id"), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    voice: Mapped[str] = mapped_column(Text, nullable=False)
+    voice: Mapped[str | None] = mapped_column(Text, nullable=True, default="Warm, helpful")
     avoid: Mapped[str | None] = mapped_column(Text, nullable=True)
     disclosure_text: Mapped[str] = mapped_column(
         String, nullable=False, default="Affiliate link"
     )
+    disclosure_template: Mapped[str | None] = mapped_column(String, nullable=True)
     disclosure_position: Mapped[str] = mapped_column(
         String, nullable=False, default="end"
     )
+    status: Mapped[str] = mapped_column(String, nullable=False, default="active")
     created_at: Mapped[str] = mapped_column(String, nullable=False, default=utc_now_iso)
     updated_at: Mapped[str] = mapped_column(
         String, nullable=False, default=utc_now_iso, onupdate=utc_now_iso
@@ -277,17 +282,18 @@ class Draft(Base):
     product_id: Mapped[str | None] = mapped_column(
         String, ForeignKey("products.id"), nullable=True
     )
-    prompt_version: Mapped[str] = mapped_column(String, nullable=False)
-    llm_model: Mapped[str] = mapped_column(String, nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String, nullable=False, default="p_v1")
+    llm_model: Mapped[str] = mapped_column(String, nullable=False, default="gemini-pro")
     parts: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array string
     llm_raw_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     link_url: Mapped[str | None] = mapped_column(String, nullable=True)
     link_placement: Mapped[str | None] = mapped_column(String, nullable=True)
     target_post_url: Mapped[str | None] = mapped_column(String, nullable=True)
-    status: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="pending_review")
     reject_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     validator_report: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string
-    text_hash: Mapped[str] = mapped_column(String, nullable=False)
+    text_hash: Mapped[str] = mapped_column(String, nullable=False, default="")
+    similarity_score: Mapped[float | None] = mapped_column(Float, nullable=True, default=0.0)
     scheduled_at: Mapped[str | None] = mapped_column(String, nullable=True)
     reviewed_at: Mapped[str | None] = mapped_column(String, nullable=True)
     expires_at: Mapped[str | None] = mapped_column(String, nullable=True)

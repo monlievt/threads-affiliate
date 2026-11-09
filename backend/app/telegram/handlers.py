@@ -15,23 +15,18 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.content.llm.budget import get_today_call_count
+from app.content.llm.usage import get_today_call_count
 from app.core.audit import record_audit_log
 from app.core.logging import get_logger
-from app.db.models import Account, Draft, LLMUsage, Post, utc_now_iso
+from app.core.clock import utc_now_iso
+from app.db.models import Account, Draft, LlmUsage, Post
 from app.safety.killswitch import get_kill_switch_status, set_kill_switch
 from app.safety.warmup import get_warmup_tier
 from app.telegram.formatter import format_draft_card
 from app.telegram.security import is_authorized_admin_chat
+from app.telegram.service import HandlerResponse
 
 log = get_logger(__name__)
-
-
-@dataclass
-class HandlerResponse:
-    text: str
-    buttons: list[list[dict[str, str]]] | None = None
-    already_processed: bool = False
 
 
 # ---------------------------------------------------------------------------

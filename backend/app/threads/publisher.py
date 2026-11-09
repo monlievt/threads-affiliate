@@ -146,7 +146,7 @@ async def publish_single_post(
     session: AsyncSession,
     *,
     account_id: str,
-    text: str,
+    text: str | None = None,
     draft_id: str | None = None,
     client: ThreadsClientProtocol | None = None,
     actor: str = "manual_script",
@@ -176,6 +176,15 @@ async def publish_single_post(
         draft = await session.scalar(select(Draft).where(Draft.id == draft_id))
         if not draft:
             raise ValueError(f"Draft with ID {draft_id!r} not found.")
+
+        if not text and draft.parts:
+            try:
+                parsed_parts = json.loads(draft.parts)
+                if isinstance(parsed_parts, list) and parsed_parts:
+                    first = parsed_parts[0]
+                    text = first.get("text", "") if isinstance(first, dict) else str(first)
+            except Exception:
+                text = ""
 
         # Idempotency check 1: Check if Post already created for this draft
         existing_post = await session.scalar(
@@ -464,3 +473,8 @@ async def reconcile_in_flight_drafts(
         logger.info("Reconciled in-flight drafts after crash", count=len(reconciled_ids), ids=reconciled_ids)
 
     return reconciled_ids
+
+
+# Semantic alias matching test and scheduler conventions
+publish_draft = publish_single_post
+

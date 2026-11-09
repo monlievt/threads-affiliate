@@ -16,16 +16,17 @@ Simulates high-stress and failure scenarios from docs/10 §3:
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import utc_now, utc_now_iso
-from app.core.security import encrypt_token
-from app.db.models import Account, Draft, Incident, Post, SystemState, WorkerLock
+from app.core.crypto import encrypt_token
+from app.db.models import Account, Draft, Incident, Post, SystemState
 from app.safety.killswitch import get_kill_switch_status, is_kill_switch_active, set_kill_switch
-from app.scheduler.lock import acquire_worker_lock, renew_worker_lock
+from app.scheduler.lock import WORKER_LOCK_KEY, acquire_worker_lock, renew_worker_lock
 from app.scheduler.reconciliation import run_startup_reconciliation
 from app.threads.fake import FakeThreadsClient
 from app.threads.publisher import (
@@ -219,12 +220,16 @@ async def test_chaos_worker_lock_contention_and_failover(db_session: AsyncSessio
     assert await acquire_worker_lock(db_session, worker_id="worker_B", ttl_seconds=5) is False
 
     # Simulate Worker A dying by artificially aging lock past TTL
-    stale_time = (utc_now() - timedelta(seconds=10)).isoformat()
-    await db_session.execute(
-        select(WorkerLock).where(WorkerLock.worker_id == "worker_A")
+    lock_row = await db_session.scalar(
+        select(SystemState).where(SystemState.key == WORKER_LOCK_KEY)
     )
-    lock_row = (await db_session.execute(select(WorkerLock).limit(1))).scalar_one()
-    lock_row.expires_at = stale_time
+    assert lock_row is not None
+    stale_payload = {
+        "worker_id": "worker_A",
+        "acquired_at": utc_now_iso(),
+        "expires_at": time.time() - 10,
+    }
+    lock_row.value = json.dumps(stale_payload)
     await db_session.commit()
 
     # Worker B can now acquire the expired lock (failover success)
@@ -331,3 +336,4 @@ async def test_chaos_circuit_breaker_two_consecutive_errors(
     assert await is_kill_switch_active(db_session) is True
     status_info = await get_kill_switch_status(db_session)
     assert "consecutive publish errors" in (status_info.get("reason") or "").lower()
+

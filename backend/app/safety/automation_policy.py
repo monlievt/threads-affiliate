@@ -31,7 +31,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit import record_audit_log
 from app.core.clock import utc_now, utc_now_iso
 from app.core.logging import get_logger
-from app.db.models import Account, Draft, Incident, WorkerHeartbeat
+from app.db.models import Account, Draft, Incident
+from app.scheduler.heartbeat import get_worker_heartbeat_info
 from app.safety.killswitch import is_kill_switch_active
 
 log = get_logger(__name__)
@@ -228,21 +229,9 @@ async def evaluate_full_auto_eligibility(
     c4_passed = token_status["valid"] and not ks_active
 
     # Criterion 5: Worker heartbeat healthy (recorded within last 120s)
-    heartbeat_q = await session.execute(
-        select(WorkerHeartbeat).order_by(WorkerHeartbeat.captured_at.desc()).limit(1)
-    )
-    latest_hb = heartbeat_q.scalar_one_or_none()
-    hb_passed = False
-    hb_lag_sec = 9999
-    if latest_hb:
-        try:
-            hb_dt = datetime.fromisoformat(latest_hb.captured_at.replace("Z", "+00:00"))
-            if hb_dt.tzinfo is None:
-                hb_dt = hb_dt.replace(tzinfo=timezone.utc)
-            hb_lag_sec = int((now - hb_dt).total_seconds())
-            hb_passed = hb_lag_sec <= 120
-        except Exception:
-            pass
+    hb_info = await get_worker_heartbeat_info(session, max_stale_seconds=120)
+    hb_passed = hb_info.get("is_alive", False)
+    hb_lag_sec = int(hb_info.get("age_seconds") or 9999)
 
     eligible = c1_passed and c2_passed and c3_passed and c4_passed and hb_passed
 

@@ -2,27 +2,25 @@
 
 from __future__ import annotations
 
-import httpx
+from dataclasses import dataclass
 from typing import Any
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.logging import get_logger
 from app.db.models import Draft
 from app.telegram.formatter import format_critical_alert, format_draft_card
-from app.telegram.handlers import (
-    HandlerResponse,
-    handle_callback,
-    handle_pause,
-    handle_quota,
-    handle_queue,
-    handle_report,
-    handle_resume,
-    handle_start,
-    handle_status,
-)
 
 log = get_logger(__name__)
+
+
+@dataclass
+class HandlerResponse:
+    text: str
+    buttons: list[list[dict[str, str]]] | None = None
+    already_processed: bool = False
+
 
 
 class TelegramBotService:
@@ -114,6 +112,17 @@ class TelegramBotService:
         session: AsyncSession,
     ) -> HandlerResponse:
         """Dispatch incoming update (message or callback_query) to appropriate handler."""
+        from app.telegram.handlers import (
+            handle_callback,
+            handle_pause,
+            handle_quota,
+            handle_queue,
+            handle_report,
+            handle_resume,
+            handle_start,
+            handle_status,
+        )
+
         # 1. Callback Query
         if "callback_query" in update_data:
             cb = update_data["callback_query"]

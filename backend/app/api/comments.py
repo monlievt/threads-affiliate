@@ -19,7 +19,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.content.llm.base import LLMResponse
 from app.content.llm.fake import FakeLLMProvider
 from app.content.llm.gemini import GeminiLLMProvider
 from app.content.prompts.f10_comment import AVOID_LIST_COMMON, build_comment_prompt
@@ -188,13 +187,11 @@ async def generate_comments(
 
     llm = _get_llm_provider()
     try:
-        llm_resp: LLMResponse = await llm.generate_text(
+        content_text = await llm.generate(
             prompt=user_prompt,
-            system_instruction=sys_prompt,
-            max_tokens=600,
+            system=sys_prompt,
             temperature=0.7,
         )
-        content_text = llm_resp.content.strip()
     except Exception:
         content_text = ""
 
