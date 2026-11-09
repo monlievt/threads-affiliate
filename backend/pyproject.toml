@@ -17,6 +17,7 @@ dependencies = [
     "cryptography>=43.0",
     "rapidfuzz>=3.9",
     "google-genai>=0.1.1",
+    "python-telegram-bot>=21.0",
 ]
 
 [project.optional-dependencies]
