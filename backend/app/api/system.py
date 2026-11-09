@@ -25,6 +25,10 @@ from app.core.clock import utc_now, utc_now_iso
 from app.core.security import get_current_admin, require_csrf
 from app.db.models import Account, AuditLog, Incident, Post
 from app.db.session import AsyncSessionLocal, check_db_connection, get_db
+from app.safety.automation_policy import (
+    evaluate_auto_downgrade,
+    evaluate_full_auto_eligibility,
+)
 from app.safety.killswitch import (
     get_kill_switch_status,
     is_kill_switch_active,
@@ -235,96 +239,21 @@ async def check_full_auto_eligibility(
 ) -> FullAutoEligibilityResponse:
     """Evaluate whether the account qualifies for full_auto autonomous mode (docs/06 §6)."""
     acc = await _get_or_create_primary_account(session)
-    now = utc_now()
-
-    # 1. Warmup Age >= 14 days
-    age_days = 0
-    if acc.warmup_started_at:
-        try:
-            start_dt = datetime.fromisoformat(acc.warmup_started_at.replace("Z", "+00:00"))
-            age_days = (now - start_dt).days
-        except Exception:
-            pass
-    age_passed = age_days >= 14
-
-    # 2. Minimum 20 published posts total
-    total_posts_res = await session.execute(
-        select(func.count(Post.id)).where(Post.account_id == acc.id)
-    )
-    total_posts = total_posts_res.scalar_one() or 0
-    posts_passed = total_posts >= 20
-
-    # 3. 0 safety incidents (warning/critical) in last 14 days
-    fourteen_days_ago = (now - timedelta(days=14)).isoformat()
-    incidents_res = await session.execute(
-        select(func.count(Incident.id)).where(
-            Incident.created_at >= fourteen_days_ago,
-            Incident.severity.in_(["warning", "critical"]),
-        )
-    )
-    incident_count = incidents_res.scalar_one() or 0
-    incidents_passed = incident_count == 0
-
-    # 4. Non-affiliate ratio >= 30%
-    non_aff_res = await session.execute(
-        select(func.count(Post.id)).where(
-            Post.account_id == acc.id,
-            Post.is_affiliate.is_(False),
-        )
-    )
-    non_aff_count = non_aff_res.scalar_one() or 0
-    ratio = (non_aff_count / total_posts) if total_posts > 0 else 0.0
-    ratio_passed = ratio >= 0.30
-
-    # 5. Token valid and Kill Switch OFF
-    token_status = get_token_status(acc)
-    ks_active = await is_kill_switch_active(session)
-    readiness_passed = token_status["valid"] and not ks_active
-
-    eligible = age_passed and posts_passed and incidents_passed and ratio_passed and readiness_passed
+    result = await evaluate_full_auto_eligibility(session, acc)
 
     criteria = {
-        "min_account_age": FullAutoCriterion(
-            required="≥ 14 hari",
-            current=f"{age_days} hari",
-            passed=age_passed,
-            label="Usia akun minimal 14 hari sejak warm-up",
-        ),
-        "min_published_posts": FullAutoCriterion(
-            required="≥ 20 post",
-            current=f"{total_posts} post",
-            passed=posts_passed,
-            label="Minimal 20 postingan telah berhasil terbit",
-        ),
-        "zero_incidents_14d": FullAutoCriterion(
-            required="0 insiden",
-            current=f"{incident_count} insiden",
-            passed=incidents_passed,
-            label="Nol insiden keamanan atau kill switch dalam 14 hari terakhir",
-        ),
-        "non_affiliate_ratio": FullAutoCriterion(
-            required="≥ 30%",
-            current=f"{int(ratio * 100)}%",
-            passed=ratio_passed,
-            label="Rasio konten non-afiliasi kumulatif minimal 30%",
-        ),
-        "token_and_killswitch_ready": FullAutoCriterion(
-            required="Token Aktif & Kill Switch OFF",
-            current="Siap" if readiness_passed else "Tidak Siap (Kill Switch ON atau Token Expired)",
-            passed=readiness_passed,
-            label="Token Threads valid dan Kill Switch tidak aktif",
-        ),
+        k: FullAutoCriterion(
+            required=c.required,
+            current=c.current,
+            passed=c.passed,
+            label=c.label,
+        )
+        for k, c in result.criteria.items()
     }
 
-    if eligible:
-        summary = "Akun memenuhi semua 5 syarat kelayakan untuk mode full_auto (otonom)."
-    else:
-        unmet = [c.label for c in criteria.values() if not c.passed]
-        summary = f"Akun belum memenuhi syarat kelayakan: {'; '.join(unmet)}."
-
     return FullAutoEligibilityResponse(
-        eligible=eligible,
-        summary_reason=summary,
+        eligible=result.eligible,
+        summary_reason=result.summary_reason,
         criteria=criteria,
     )
 
@@ -350,6 +279,18 @@ async def update_account_settings(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Jam mulai aktif ({start_h}) harus lebih kecil dari jam selesai ({end_h}).",
         )
+
+    # Check for safety incident blocks when requesting automated modes
+    if payload.automation_mode in ("auto_sampled", "full_auto"):
+        downgraded, downgrade_reason = await evaluate_auto_downgrade(session, acc)
+        if downgraded:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "message": f"Peralihan ke mode '{payload.automation_mode}' ditolak karena insiden keamanan aktif dalam 7 hari terakhir.",
+                    "reason": downgrade_reason,
+                },
+            )
 
     # Validate full_auto eligibility if requesting switch
     if payload.automation_mode == "full_auto" and acc.automation_mode != "full_auto":

@@ -18,6 +18,10 @@ from app.content.llm.usage import check_and_increment_llm_budget
 from app.content.parser import GenerationOutput, parse_generation_output
 from app.content.prompts.p_v1 import PROMPT_VERSION, build_p_v1_prompt
 from app.db.models import Account, Draft, Niche, Persona, Product, Style
+from app.safety.automation_policy import (
+    determine_draft_initial_status,
+    evaluate_auto_downgrade,
+)
 from app.safety.similarity import (
     check_draft_similarity_in_db,
     compute_normalized_hash,
@@ -149,6 +153,9 @@ class ContentEngine:
         now_iso = now.isoformat()
         expires_at_iso = (now + timedelta(hours=48)).isoformat()
 
+        # Check if account requires auto-downgrade due to recent incidents (docs/06 §6)
+        await evaluate_auto_downgrade(session, account)
+
         is_affiliate = product is not None
 
         for variant in parsed_output.variants:
@@ -173,7 +180,8 @@ class ContentEngine:
                 threshold=70.0,
             )
 
-            # Determine draft status
+            # Determine draft status based on validation and automation mode
+            reviewed_at_iso = None
             if not val_report.passed:
                 status = "rejected_auto"
                 reason = f"Violated content rules: {', '.join(val_report.failed_codes)}"
@@ -181,8 +189,10 @@ class ContentEngine:
                 status = "rejected_auto"
                 reason = f"Similarity too high: {sim_report.max_similarity:.1f}% >= 70%"
             else:
-                status = "pending_review"
-                reason = None
+                status, approval_note = determine_draft_initial_status(account, val_passed=True)
+                reason = approval_note
+                if status == "approved":
+                    reviewed_at_iso = now_iso
 
             draft = Draft(
                 account_id=account.id,
@@ -198,7 +208,8 @@ class ContentEngine:
                 link_url=product.benable_url if product and variant.has_link else None,
                 link_placement=variant.link_placement if variant.has_link else "none",
                 status=status,
-                reject_reason=reason,
+                reject_reason=reason if status != "approved" else None,
+                reviewed_at=reviewed_at_iso,
                 validator_report=json.dumps(val_report.to_dict()),
                 text_hash=text_hash,
                 expires_at=expires_at_iso,

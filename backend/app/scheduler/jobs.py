@@ -119,3 +119,24 @@ async def job_generate_weekly_report(
         log.error("Error generating weekly report", error=str(exc))
         return {"error": str(exc)}
 
+
+async def job_check_safety_downgrades(
+    session: AsyncSession,
+) -> dict[str, Any]:
+    """Periodic job: evaluates recent safety incidents and applies auto-downgrade to manual_approve if needed."""
+    from app.db.models import Account
+    from app.safety.automation_policy import evaluate_auto_downgrade
+    try:
+        acc_res = await session.execute(select(Account).where(Account.automation_mode != "manual_approve"))
+        active_accounts = acc_res.scalars().all()
+        downgraded = []
+        for acc in active_accounts:
+            did_downgrade, reason = await evaluate_auto_downgrade(session, acc)
+            if did_downgrade:
+                downgraded.append({"account_id": acc.id, "reason": reason})
+        return {"downgraded_count": len(downgraded), "downgraded_accounts": downgraded}
+    except Exception as exc:
+        log.error("Error in safety downgrade job", error=str(exc))
+        return {"error": str(exc)}
+
+
