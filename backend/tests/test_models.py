@@ -189,3 +189,4 @@ async def test_llm_usage_and_job_lock(db_session: AsyncSession) -> None:
     retrieved_lock = await db_session.scalar(select(JobLock).where(JobLock.name == "publish_due"))
     assert retrieved_lock is not None
     assert retrieved_lock.owner == "worker_1"
+

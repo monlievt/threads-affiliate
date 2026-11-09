@@ -123,3 +123,4 @@ async def seed_initial_styles(session: AsyncSession) -> int:
 
     await session.commit()
     return inserted
+
