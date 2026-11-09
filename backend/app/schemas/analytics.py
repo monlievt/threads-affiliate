@@ -1,4 +1,4 @@
-"""app/schemas/analytics.py — Pydantic schemas for Metrics and Analytics endpoints."""
+"""app/schemas/analytics.py — Pydantic schemas for Metrics, Analytics, and Link Clicks endpoints (T-040 & T-041)."""
 
 from __future__ import annotations
 
@@ -59,3 +59,53 @@ class CollectMetricsResponse(BaseModel):
     posts_failed: int
     buckets_processed: dict[str, int]
     snapshot_id: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Link Clicks & Benable Import Schemas (T-041)
+# ---------------------------------------------------------------------------
+
+class LinkClickCreate(BaseModel):
+    product_id: str | None = None
+    post_id: str | None = None
+    period_start: str = Field(..., description="Start of period (ISO format or YYYY-MM-DD)")
+    period_end: str = Field(..., description="End of period (ISO format or YYYY-MM-DD)")
+    clicks: int = Field(ge=0, description="Click count in this period, non-negative integer")
+    source: str = Field(default="benable_manual", description="Source of click data")
+    note: str | None = None
+
+
+class LinkClickItem(BaseModel):
+    id: str
+    product_id: str | None = None
+    product_title: str | None = None
+    post_id: str | None = None
+    period_start: str
+    period_end: str
+    clicks: int
+    source: str
+    note: str | None = None
+    created_at: str
+
+
+class LinkClickListResponse(BaseModel):
+    total_clicks: int
+    items_count: int
+    attribution_caveat: str
+    items: list[LinkClickItem] = Field(default_factory=list)
+
+
+class ClickImportRowError(BaseModel):
+    row: int
+    product: str | None = None
+    reason: str
+
+
+class ClickImportResponse(BaseModel):
+    total_rows: int
+    imported_count: int
+    failed_count: int
+    is_preview: bool
+    attribution_caveat: str
+    errors: list[ClickImportRowError] = Field(default_factory=list)
+    imported_items: list[LinkClickItem] = Field(default_factory=list)

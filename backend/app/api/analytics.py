@@ -1,29 +1,50 @@
-"""app/api/analytics.py — Analytics, Post Metrics, and Account Growth endpoints (T-040).
+"""app/api/analytics.py — Analytics, Post Metrics, Account Growth, and Benable Clicks endpoints (T-040 & T-041).
 
-Follows strict safety principles:
+Safety & Compliance Principles:
 1. Idempotent metrics storage: Bucketed measurements (1h, 24h, 72h, 7d).
 2. Fail-soft collection: Missing media or API glitches do not halt the process.
-3. Manual trigger capability with audit trail tracking.
+3. Click attribution caveat: Benable clicks are product-and-period level, not individual post level.
+4. Row-by-row CSV validation with clear error feedback.
+5. All mutations require admin session + CSRF token, and append an audit log entry.
 """
 
 from __future__ import annotations
 
 import json
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.analytics.click_importer import (
+    CLICK_ATTRIBUTION_CAVEAT,
+    parse_and_import_clicks_csv,
+    parse_date_str,
+)
 from app.analytics.metrics_collector import capture_account_snapshot, collect_post_metrics
 from app.core.audit import record_audit_log
 from app.core.security import get_current_admin, require_csrf
-from app.db.models import Account, AccountSnapshot, Draft, Post, PostMetric
+from app.db.models import Account, AccountSnapshot, Draft, LinkClick, Post, PostMetric, Product, utc_now_iso
 from app.db.session import get_db
 from app.schemas.analytics import (
     AccountSnapshotItem,
     AnalyticsOverviewResponse,
+    ClickImportResponse,
+    ClickImportRowError,
     CollectMetricsResponse,
+    LinkClickCreate,
+    LinkClickItem,
+    LinkClickListResponse,
     PostMetricItem,
     PublishedPostAnalytics,
 )
@@ -81,7 +102,6 @@ async def get_analytics_overview(
     recent_post_items: list[PublishedPostAnalytics] = []
 
     for idx, p in enumerate(all_posts):
-        # Find latest metric values
         latest_v = 0
         latest_l = 0
         latest_rep = 0
@@ -209,3 +229,258 @@ async def trigger_collect_metrics_manual(
         buckets_processed=result.buckets_processed,
         snapshot_id=snapshot.id,
     )
+
+
+# ---------------------------------------------------------------------------
+# Link Clicks & Benable Import Endpoints (T-041)
+# ---------------------------------------------------------------------------
+
+@router.get("/clicks", response_model=LinkClickListResponse)
+async def list_link_clicks(
+    product_id: str | None = Query(default=None, description="Filter by product ID"),
+    post_id: str | None = Query(default=None, description="Filter by post ID"),
+    start_date: str | None = Query(default=None, description="Filter period >= start_date"),
+    end_date: str | None = Query(default=None, description="Filter period <= end_date"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(get_current_admin),  # noqa: ARG001
+) -> LinkClickListResponse:
+    """List recorded Benable link clicks with optional filtering and mandatory caveat notice."""
+    stmt = (
+        select(LinkClick)
+        .options(selectinload(LinkClick.product))
+        .order_by(LinkClick.period_start.desc(), LinkClick.created_at.desc())
+    )
+
+    if product_id:
+        stmt = stmt.where(LinkClick.product_id == product_id)
+    if post_id:
+        stmt = stmt.where(LinkClick.post_id == post_id)
+    if start_date:
+        stmt = stmt.where(LinkClick.period_start >= start_date)
+    if end_date:
+        stmt = stmt.where(LinkClick.period_end <= end_date)
+
+    res = await session.execute(stmt)
+    all_items = res.scalars().all()
+
+    total_clicks = sum(item.clicks for item in all_items)
+    paginated_items = all_items[offset : offset + limit]
+
+    items = [
+        LinkClickItem(
+            id=c.id,
+            product_id=c.product_id,
+            product_title=c.product.title if c.product else None,
+            post_id=c.post_id,
+            period_start=c.period_start,
+            period_end=c.period_end,
+            clicks=c.clicks,
+            source=c.source,
+            note=c.note,
+            created_at=c.created_at,
+        )
+        for c in paginated_items
+    ]
+
+    return LinkClickListResponse(
+        total_clicks=total_clicks,
+        items_count=len(all_items),
+        attribution_caveat=CLICK_ATTRIBUTION_CAVEAT,
+        items=items,
+    )
+
+
+@router.post("/clicks", response_model=LinkClickItem, status_code=status.HTTP_201_CREATED)
+async def create_link_click_manual(
+    payload: LinkClickCreate,
+    session: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(get_current_admin),
+    _csrf: None = Depends(require_csrf),  # noqa: ARG001
+) -> LinkClickItem:
+    """Manually record a Benable link click entry."""
+    # 1. Validate dates
+    dt_start = parse_date_str(payload.period_start)
+    dt_end = parse_date_str(payload.period_end)
+    if not dt_start:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid period_start date format: {payload.period_start}",
+        )
+    if not dt_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid period_end date format: {payload.period_end}",
+        )
+    if dt_start > dt_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="period_start cannot be after period_end",
+        )
+
+    # 2. Validate product / post existence
+    product_title = None
+    if payload.product_id:
+        prod_res = await session.execute(select(Product).where(Product.id == payload.product_id))
+        prod = prod_res.scalar_one_or_none()
+        if not prod:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product with id '{payload.product_id}' not found",
+            )
+        product_title = prod.title
+
+    if payload.post_id:
+        post_res = await session.execute(select(Post).where(Post.id == payload.post_id))
+        if not post_res.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Post with id '{payload.post_id}' not found",
+            )
+
+    if not payload.product_id and not payload.post_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least product_id or post_id must be provided",
+        )
+
+    click_entry = LinkClick(
+        product_id=payload.product_id,
+        post_id=payload.post_id,
+        period_start=dt_start.isoformat(),
+        period_end=dt_end.isoformat(),
+        clicks=payload.clicks,
+        source=payload.source or "benable_manual",
+        note=payload.note,
+    )
+    session.add(click_entry)
+    await session.commit()
+    await session.refresh(click_entry)
+
+    await record_audit_log(
+        session,
+        actor=admin.get("sub", "admin"),
+        action="record_click",
+        entity="link_clicks",
+        entity_id=click_entry.id,
+        detail={
+            "product_id": click_entry.product_id,
+            "post_id": click_entry.post_id,
+            "clicks": click_entry.clicks,
+            "period_start": click_entry.period_start,
+            "period_end": click_entry.period_end,
+        },
+    )
+
+    return LinkClickItem(
+        id=click_entry.id,
+        product_id=click_entry.product_id,
+        product_title=product_title,
+        post_id=click_entry.post_id,
+        period_start=click_entry.period_start,
+        period_end=click_entry.period_end,
+        clicks=click_entry.clicks,
+        source=click_entry.source,
+        note=click_entry.note,
+        created_at=click_entry.created_at,
+    )
+
+
+@router.post("/clicks/preview-csv", response_model=ClickImportResponse)
+async def preview_clicks_csv(
+    file: UploadFile | None = File(default=None),
+    csv_content: str | None = Body(default=None, embed=True),
+    session: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(get_current_admin),  # noqa: ARG001
+) -> ClickImportResponse:
+    """Dry-run preview of CSV Benable click import with row-by-row validation."""
+    raw_text = ""
+    if file:
+        content_bytes = await file.read()
+        try:
+            raw_text = content_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            raw_text = content_bytes.decode("latin-1")
+    elif csv_content:
+        raw_text = csv_content
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either a CSV file or csv_content text must be provided.",
+        )
+
+    res = await parse_and_import_clicks_csv(raw_text, session, dry_run=True)
+    return ClickImportResponse(**res)
+
+
+@router.post("/clicks/import-csv", response_model=ClickImportResponse)
+async def import_clicks_csv(
+    file: UploadFile | None = File(default=None),
+    csv_content: str | None = Body(default=None, embed=True),
+    session: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(get_current_admin),
+    _csrf: None = Depends(require_csrf),  # noqa: ARG001
+) -> ClickImportResponse:
+    """Import Benable clicks from CSV with row-by-row validation."""
+    raw_text = ""
+    if file:
+        content_bytes = await file.read()
+        try:
+            raw_text = content_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            raw_text = content_bytes.decode("latin-1")
+    elif csv_content:
+        raw_text = csv_content
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either a CSV file or csv_content text must be provided.",
+        )
+
+    res = await parse_and_import_clicks_csv(raw_text, session, dry_run=False)
+
+    await record_audit_log(
+        session,
+        actor=admin.get("sub", "admin"),
+        action="import_clicks_csv",
+        entity="link_clicks",
+        detail={
+            "total_rows": res["total_rows"],
+            "imported_count": res["imported_count"],
+            "failed_count": res["failed_count"],
+        },
+    )
+
+    return ClickImportResponse(**res)
+
+
+@router.delete("/clicks/{click_id}")
+async def delete_link_click(
+    click_id: str,
+    session: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(get_current_admin),
+    _csrf: None = Depends(require_csrf),  # noqa: ARG001
+) -> dict[str, Any]:
+    """Delete a recorded link click entry."""
+    res = await session.execute(select(LinkClick).where(LinkClick.id == click_id))
+    item = res.scalar_one_or_none()
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"LinkClick with id '{click_id}' not found",
+        )
+
+    await session.delete(item)
+    await session.commit()
+
+    await record_audit_log(
+        session,
+        actor=admin.get("sub", "admin"),
+        action="delete_click",
+        entity="link_clicks",
+        entity_id=click_id,
+        detail={"product_id": item.product_id, "clicks": item.clicks},
+    )
+
+    return {"deleted": True, "id": click_id}

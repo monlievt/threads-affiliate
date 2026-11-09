@@ -442,3 +442,44 @@ export interface CommentsQuotaResponse {
   is_quota_full: boolean;
   avoid_list: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Link Clicks & Benable Import (T-041)
+// ---------------------------------------------------------------------------
+
+export interface LinkClickItem {
+  id: string;
+  product_id: string | null;
+  product_title: string | null;
+  post_id: string | null;
+  period_start: string;
+  period_end: string;
+  clicks: number;
+  source: string;
+  note: string | null;
+  created_at: string;
+}
+
+export interface LinkClickListResponse {
+  total_clicks: number;
+  items_count: number;
+  attribution_caveat: string;
+  items: LinkClickItem[];
+}
+
+export interface ClickImportRowError {
+  row: number;
+  product: string | null;
+  reason: string;
+}
+
+export interface ClickImportResponse {
+  total_rows: number;
+  imported_count: number;
+  failed_count: number;
+  is_preview: boolean;
+  attribution_caveat: string;
+  errors: ClickImportRowError[];
+  imported_items: LinkClickItem[];
+}
+
