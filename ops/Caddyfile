@@ -1,0 +1,27 @@
+# ops/Caddyfile — Reverse proxy configuration for Threads Affiliate Automation
+
+{
+    email admin@example.com
+}
+
+# Replace with your actual domain or use Tailscale / Cloudflare Tunnel
+{$DOMAIN:localhost} {
+    # Backend API & Health
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    handle /health {
+        reverse_proxy backend:8000
+    }
+
+    # Frontend Next.js dashboard
+    handle {
+        reverse_proxy frontend:3000
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

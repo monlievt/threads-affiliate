@@ -1,0 +1,42 @@
+# Secrets & local overrides
+.env
+.env.local
+.env.*.local
+
+# Data directory (SQLite + WAL files)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Alembic (generated)
+backend/app/db/migrations/versions/
