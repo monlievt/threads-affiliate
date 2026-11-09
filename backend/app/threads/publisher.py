@@ -23,7 +23,7 @@ from app.core.audit import record_audit_log
 from app.core.clock import utc_now, utc_now_iso
 from app.core.crypto import decrypt_token
 from app.core.logging import get_logger
-from app.db.models import Account, Draft, Post, SystemState
+from app.db.models import Account, Draft, Incident, Post, SystemState
 from app.safety.guard import PublishGuard
 from app.safety.killswitch import set_kill_switch
 from app.telegram.service import send_telegram_alert
@@ -401,6 +401,47 @@ async def reconcile_in_flight_drafts(
             age_sec = max_stale_seconds + 1
 
         if age_sec > max_stale_seconds:
+            creation_id = await get_saved_creation_id(session, draft.id)
+            if not creation_id:
+                # Skenario Kritis K-3 (docs/10 §3):
+                # Putus koneksi sebelum creation_id tersimpan ke DB -> draf 'publishing' dengan creation_id = NULL.
+                # Wajib: catat insiden warning, aktifkan kill switch, jangan retry otomatis.
+                draft.status = "failed"
+                draft.reject_reason = (
+                    "CRITICAL_K3_CRASH: Hanging publishing draft with null creation_id. "
+                    "Kill switch engaged to prevent duplicate posting."
+                )
+                draft.updated_at = utc_now_iso()
+
+                await set_kill_switch(
+                    session,
+                    active=True,
+                    reason=f"K-3 crash reconciliation: hanging draft {draft.id[:8]} with unknown creation_id",
+                    actor="reconciler",
+                )
+                inc = Incident(
+                    account_id=draft.account_id,
+                    code="HANGING_DRAFT_UNKNOWN_CREATION_ID",
+                    severity="warning",
+                    detail=f"K-3 critical crash: draft {draft.id} stuck in publishing with null creation_id. Kill switch engaged.",
+                )
+                session.add(inc)
+                await send_telegram_alert(
+                    f"🚨 Skenario K-3: Draf #{draft.id[:8]} menggantung tanpa creation_id. "
+                    "Kill Switch diaktifkan otomatis untuk mencegah duplikat."
+                )
+
+                await record_audit_log(
+                    session,
+                    actor="reconciler",
+                    action="reconcile_crash_k3_killswitch",
+                    entity="drafts",
+                    entity_id=draft.id,
+                    detail={"age_seconds": age_sec, "incident": "HANGING_DRAFT_UNKNOWN_CREATION_ID"},
+                )
+                reconciled_ids.append(draft.id)
+                continue
+
             draft.status = "failed"
             draft.reject_reason = (
                 f"Crash reconciliation: publication remained stuck in 'publishing' for {int(age_sec)}s."
@@ -414,7 +455,7 @@ async def reconcile_in_flight_drafts(
                 action="reconcile_crash_failed",
                 entity="drafts",
                 entity_id=draft.id,
-                detail={"age_seconds": age_sec},
+                detail={"age_seconds": age_sec, "creation_id": creation_id},
             )
             reconciled_ids.append(draft.id)
 
