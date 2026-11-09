@@ -240,3 +240,4 @@ class PublishGuard:
         # All 10 checks passed cleanly!
         logger.info("PublishGuard: ALL 10 SAFETY CHECKS PASSED", draft_id=draft.id)
         return GuardDecision(allowed=True)
+

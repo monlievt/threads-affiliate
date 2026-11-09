@@ -248,3 +248,4 @@ async def test_check_9_api_quota_exhausted(
     decision = await PublishGuard.check(db_session, draft=draft, account=account, client=client)
     assert decision.allowed is False
     assert "API_QUOTA_EXHAUSTED" in (decision.reason or "")
+
