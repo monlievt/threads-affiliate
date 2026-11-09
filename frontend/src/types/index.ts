@@ -39,3 +39,63 @@ export interface QuotaSummary {
   warmup_week: number;
   llm_calls_today: number;
 }
+
+export interface ValidationRuleResult {
+  code: string;
+  valid: boolean;
+  reason: string | null;
+}
+
+export interface ValidatorReportData {
+  valid: boolean;
+  results: Record<string, ValidationRuleResult>;
+  failed_codes: string[];
+}
+
+export interface DraftItem {
+  id: string;
+  account_id: string;
+  kind: "post" | "thread" | "comment";
+  niche_id: string | null;
+  niche_name: string | null;
+  style_id: string | null;
+  style_name: string | null;
+  product_id: string | null;
+  product_title: string | null;
+  prompt_version: string;
+  llm_model: string;
+  parts: Array<{ part_index?: number; text: string; char_count?: number }>;
+  text: string;
+  link_url: string | null;
+  link_placement: string | null;
+  status:
+    | "generated"
+    | "rejected_auto"
+    | "pending_review"
+    | "approved"
+    | "rejected"
+    | "scheduled"
+    | "publishing"
+    | "published"
+    | "failed"
+    | "failed_permanent"
+    | "expired"
+    | "cancelled";
+  reject_reason: string | null;
+  validator_report: ValidatorReportData | null;
+  similarity_score: number | null;
+  text_hash: string;
+  scheduled_at: string | null;
+  reviewed_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RealtimeValidationResponse {
+  valid: boolean;
+  char_count: number;
+  max_chars: number;
+  failed_codes: string[];
+  results: Record<string, ValidationRuleResult>;
+}
