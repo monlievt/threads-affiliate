@@ -483,3 +483,64 @@ export interface ClickImportResponse {
   imported_items: LinkClickItem[];
 }
 
+// ---------------------------------------------------------------------------
+// Experiments & Allocation (T-042)
+// ---------------------------------------------------------------------------
+
+export interface ExperimentArmItem {
+  id: string;
+  experiment_id: string;
+  label: string;
+  target_posts: number;
+  niche_id: string | null;
+  niche_name: string | null;
+  style_id: string | null;
+  style_name: string | null;
+}
+
+export interface ExperimentItem {
+  id: string;
+  name: string;
+  phase: "niche_test" | "style_test" | "scale";
+  status: "planned" | "running" | "completed" | "aborted";
+  start_date: string;
+  end_date: string | null;
+  config: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  arms: ExperimentArmItem[];
+}
+
+export interface ArmProgressItem {
+  arm_id: string;
+  label: string;
+  niche_id: string | null;
+  niche_name: string | null;
+  style_id: string | null;
+  style_name: string | null;
+  target_posts: number;
+  total_drafts: number;
+  published_posts: number;
+  metrics_completed_72h: number;
+  progress_pct: number;
+}
+
+export interface ExperimentProgressResponse {
+  experiment_id: string;
+  name: string;
+  phase: string;
+  status: string;
+  total_target_posts: number;
+  total_published_posts: number;
+  overall_progress_pct: number;
+  arms: ArmProgressItem[];
+}
+
+export interface AllocateNextArmResponse {
+  experiment_id: string;
+  has_eligible_arm: boolean;
+  recommended_arm: ExperimentArmItem | null;
+  reason: string;
+}
+
+

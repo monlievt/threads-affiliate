@@ -4,6 +4,7 @@ from app.api.analytics import router as analytics_router
 from app.api.auth import router as auth_router
 from app.api.comments import router as comments_router
 from app.api.drafts import router as drafts_router
+from app.api.experiments import router as experiments_router
 from app.api.niches import router as niches_router
 from app.api.oauth import router as oauth_router
 from app.api.personas import router as personas_router
@@ -17,6 +18,7 @@ __all__ = [
     "auth_router",
     "comments_router",
     "drafts_router",
+    "experiments_router",
     "niches_router",
     "oauth_router",
     "personas_router",
