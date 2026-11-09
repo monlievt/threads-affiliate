@@ -570,3 +570,27 @@ export async function allocateNextArm(
   });
 }
 
+/**
+ * Authentication API
+ */
+export async function loginApi(payload: {
+  username: string;
+  password: string;
+}): Promise<{ status: string; username: string; csrf_token: string }> {
+  return fetchApi<{ status: string; username: string; csrf_token: string }>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getMe(): Promise<{ authenticated: boolean; username: string; csrf_token: string }> {
+  return fetchApi<{ authenticated: boolean; username: string; csrf_token: string }>("/api/auth/me");
+}
+
+export async function logoutApi(): Promise<{ status: string }> {
+  return fetchApi<{ status: string }>("/api/auth/logout", {
+    method: "POST",
+  });
+}
+
+
