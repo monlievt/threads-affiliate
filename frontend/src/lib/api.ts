@@ -3,9 +3,14 @@
  */
 
 import {
+  AccountSettingsResponse,
+  AccountSettingsUpdatePayload,
+  AuditLogItem,
   CalendarResponse,
   CSVImportRowError,
   DraftItem,
+  FullAutoEligibilityResponse,
+  IncidentItem,
   KillSwitchStatus,
   MoveSlotResponse,
   NicheCreatePayload,
@@ -332,4 +337,55 @@ export async function validateScheduleSlot(
       candidate_scheduled_at: candidateScheduledAt,
     }),
   });
+}
+
+/**
+ * Settings, Automation & Hard Limits API
+ */
+export async function getAccountSettings(): Promise<AccountSettingsResponse> {
+  return fetchApi<AccountSettingsResponse>("/api/system/account");
+}
+
+export async function updateAccountSettings(
+  payload: AccountSettingsUpdatePayload
+): Promise<AccountSettingsResponse> {
+  return fetchApi<AccountSettingsResponse>("/api/system/account", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getFullAutoEligibility(): Promise<FullAutoEligibilityResponse> {
+  return fetchApi<FullAutoEligibilityResponse>("/api/system/full-auto-eligibility");
+}
+
+/**
+ * Incidents API
+ */
+export async function getIncidents(resolved?: boolean): Promise<IncidentItem[]> {
+  const q = resolved !== undefined ? `?resolved=${resolved}` : "";
+  return fetchApi<IncidentItem[]>(`/api/system/incidents${q}`);
+}
+
+export async function resolveIncident(
+  incidentId: string,
+  resolutionNotes: string
+): Promise<IncidentItem> {
+  return fetchApi<IncidentItem>(`/api/system/incidents/${incidentId}/resolve`, {
+    method: "POST",
+    body: JSON.stringify({ resolution_notes: resolutionNotes }),
+  });
+}
+
+/**
+ * Audit Trail API
+ */
+export async function getAuditLogs(
+  limit: number = 50,
+  offset: number = 0,
+  action?: string
+): Promise<AuditLogItem[]> {
+  const q = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
+  if (action) q.set("action", action);
+  return fetchApi<AuditLogItem[]>(`/api/system/audit-logs?${q.toString()}`);
 }

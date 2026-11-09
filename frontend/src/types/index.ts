@@ -319,3 +319,65 @@ export interface ValidateSlotResponse {
   violates_interval?: boolean;
   violates_quota?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Settings, Full-Auto & Incidents
+// ---------------------------------------------------------------------------
+export interface FullAutoCriterion {
+  required: string;
+  current: string;
+  passed: boolean;
+  label: string;
+}
+
+export interface FullAutoEligibilityResponse {
+  eligible: boolean;
+  summary_reason: string;
+  criteria: Record<string, FullAutoCriterion>;
+}
+
+export interface AccountSettingsResponse {
+  id: string;
+  username: string | null;
+  threads_user_id: string | null;
+  country_code: string;
+  timezone: string;
+  active_hours_start: number;
+  active_hours_end: number;
+  automation_mode: "manual_approve" | "auto_sampled" | "full_auto";
+  sample_review_pct: number;
+  warmup_started_at: string | null;
+  warmup_age_days: number;
+  token_valid: boolean;
+  token_expires_at: string | null;
+  days_until_token_expiry: number | null;
+  hard_max_posts_per_day: number;
+  hard_max_replies_per_day: number;
+}
+
+export interface AccountSettingsUpdatePayload {
+  active_hours_start?: number;
+  active_hours_end?: number;
+  automation_mode?: "manual_approve" | "auto_sampled" | "full_auto";
+  sample_review_pct?: number;
+  timezone?: string;
+}
+
+export interface IncidentItem {
+  id: string;
+  severity: "info" | "warning" | "critical";
+  code: string;
+  detail: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface AuditLogItem {
+  id: string;
+  at: string;
+  actor: string;
+  action: string;
+  entity: string | null;
+  entity_id: string | null;
+  detail: string | null;
+}
