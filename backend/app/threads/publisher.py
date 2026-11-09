@@ -162,3 +162,4 @@ async def publish_single_post(
     )
 
     return post
+

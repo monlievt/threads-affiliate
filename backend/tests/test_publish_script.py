@@ -183,3 +183,4 @@ async def test_safe_publish_flow_with_fake_client(
     assert audit is not None
     assert audit.action == "post_published"
     assert audit.actor == "test_runner"
+
