@@ -184,3 +184,4 @@ async def test_governor_min_interval_violation(db_session: AsyncSession) -> None
     decision_valid = await check_governor_limits(db_session, account_id=account.id, proposed_time=attempt_valid)
 
     assert decision_valid.allowed is True
+

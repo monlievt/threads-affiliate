@@ -21,7 +21,7 @@ from app.core.clock import utc_now_iso
 from app.core.crypto import decrypt_token
 from app.core.logging import get_logger
 from app.db.models import Account, Draft, Post
-from app.safety.minimal_guard import check_minimal_guard
+from app.safety.guard import PublishGuard
 from app.threads.base import ThreadsClientProtocol
 from app.threads.client import ThreadsHttpClient
 
@@ -65,21 +65,6 @@ async def publish_single_post(
     if not account:
         raise ValueError(f"Account with ID {account_id!r} not found.")
 
-    # 2. Minimal guard check
-    decision = await check_minimal_guard(
-        session,
-        account=account,
-        text=text,
-        draft_id=draft_id,
-    )
-    if not decision.allowed:
-        logger.warning(
-            "Publish blocked by guard",
-            account_id=account_id,
-            reason=decision.reason,
-        )
-        raise PermissionError(f"Publish blocked: {decision.reason}")
-
     # 3. Resolve or create Draft record
     now_iso = utc_now_iso()
     text_hash = compute_text_hash(text)
@@ -98,7 +83,7 @@ async def publish_single_post(
             llm_model="none",
             parts=json.dumps([text]),
             text_hash=text_hash,
-            status="publishing",
+            status="approved",
             created_at=now_iso,
             updated_at=now_iso,
         )
@@ -106,6 +91,29 @@ async def publish_single_post(
 
     await session.commit()
     await session.refresh(draft)
+
+    # 4. Comprehensive PublishGuard verification
+    decision = await PublishGuard.check(
+        session,
+        draft=draft,
+        account=account,
+        client=client,
+        check_api_quota=True,
+    )
+    if not decision.allowed:
+        draft.status = "failed"
+        draft.reject_reason = decision.reason
+        await session.commit()
+        logger.warning(
+            "Publish blocked by PublishGuard",
+            account_id=account_id,
+            draft_id=draft.id,
+            reason=decision.reason,
+        )
+        raise PermissionError(f"Publish blocked: {decision.reason}")
+
+    draft.status = "publishing"
+    await session.commit()
 
     # 4. Resolve client
     if client is None:

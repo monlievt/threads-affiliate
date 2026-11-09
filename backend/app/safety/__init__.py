@@ -7,13 +7,14 @@ from app.safety.governor import (
     get_target_day_bounds_utc,
     is_within_active_hours,
 )
+from app.safety.guard import GuardDecision, PublishGuard
 from app.safety.killswitch import (
     ensure_kill_switch_initialized,
     get_kill_switch_status,
     is_kill_switch_active,
     set_kill_switch,
 )
-from app.safety.minimal_guard import GuardDecision, check_minimal_guard
+from app.safety.minimal_guard import check_minimal_guard
 from app.safety.similarity import (
     SimilarityCheckResult,
     calculate_similarity,
@@ -42,6 +43,7 @@ from app.safety.warmup import WarmupTier, get_warmup_tier
 __all__ = [
     "GovernorDecision",
     "GuardDecision",
+    "PublishGuard",
     "SimilarityCheckResult",
     "ValidationResult",
     "ValidatorReport",
