@@ -135,3 +135,4 @@ async def test_gemini_provider_json_retry_failure_raises_error() -> None:
             await provider.generate("Generate prompt")
 
         assert mock_api.call_count == 2
+

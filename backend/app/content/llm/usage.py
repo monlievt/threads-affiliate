@@ -83,3 +83,4 @@ async def check_and_increment_llm_budget(
         budget=effective_budget,
     )
     return record.calls
+

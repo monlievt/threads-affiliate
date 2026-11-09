@@ -65,3 +65,4 @@ class FakeLLMProvider(LLMProvider):
             return self.canned_responses.pop(0)
 
         return DEFAULT_FAKE_COMPLETION
+

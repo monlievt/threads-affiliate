@@ -37,3 +37,4 @@ class LLMProvider(Protocol):
         Must return raw JSON string suitable for structured parsing.
         """
         ...
+
