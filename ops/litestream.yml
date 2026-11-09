@@ -1,0 +1,15 @@
+# ops/litestream.yml — Litestream real-time SQLite WAL replication config (T-051)
+# See: https://litestream.io/reference/config/
+
+dbs:
+  - path: /app/data/app.db
+    replicas:
+      # S3 / Cloudflare R2 / Backblaze B2 compatible storage
+      - type: s3
+        bucket: "${LITESTREAM_BUCKET:-threads-affiliate-backup}"
+        path: "litestream/app.db"
+        endpoint: "${LITESTREAM_ENDPOINT:-https://<account_id>.r2.cloudflarestorage.com}"
+        access-key-id: "${LITESTREAM_ACCESS_KEY_ID:-}"
+        secret-access-key: "${LITESTREAM_SECRET_ACCESS_KEY:-}"
+        retention: "168h" # 7 days WAL retention
+        sync-interval: "1s"
