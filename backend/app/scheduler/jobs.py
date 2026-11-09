@@ -88,3 +88,21 @@ async def job_expire_stale_drafts(
     except Exception as exc:
         log.error("Error running draft expiration job", error=str(exc))
         return []
+
+
+async def job_collect_post_metrics(
+    session: AsyncSession,
+) -> dict[str, Any]:
+    """Periodic job: collects 1h, 24h, 72h, 7d post metrics and captures account snapshot."""
+    from app.analytics.metrics_collector import capture_account_snapshot, collect_post_metrics
+    try:
+        res = await collect_post_metrics(session)
+        snap = await capture_account_snapshot(session)
+        return {
+            "metrics_saved": res.metrics_saved,
+            "posts_failed": res.posts_failed,
+            "snapshot_id": snap.id,
+        }
+    except Exception as exc:
+        log.error("Error running metrics collection job", error=str(exc))
+        return {"error": str(exc)}

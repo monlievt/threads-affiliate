@@ -19,6 +19,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from app.api.analytics import router as analytics_router
 from app.api.auth import router as auth_router
 from app.api.comments import router as comments_router
 from app.api.drafts import router as drafts_router
@@ -113,3 +114,4 @@ app.include_router(personas_router)
 app.include_router(drafts_router)
 app.include_router(schedule_router)
 app.include_router(comments_router)
+app.include_router(analytics_router)

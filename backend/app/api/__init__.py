@@ -1,5 +1,6 @@
 """app/api/__init__.py — API routers package."""
 
+from app.api.analytics import router as analytics_router
 from app.api.auth import router as auth_router
 from app.api.comments import router as comments_router
 from app.api.drafts import router as drafts_router
@@ -12,6 +13,7 @@ from app.api.styles import router as styles_router
 from app.api.system import router as system_router
 
 __all__ = [
+    "analytics_router",
     "auth_router",
     "comments_router",
     "drafts_router",
