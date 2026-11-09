@@ -196,3 +196,4 @@ async def check_draft_similarity_in_db(
             continue
 
     return check_content_similarity(new_text, historical_texts, threshold=threshold)
+

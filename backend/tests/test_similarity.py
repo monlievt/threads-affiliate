@@ -134,3 +134,4 @@ async def test_check_draft_similarity_in_db(db_session: AsyncSession) -> None:
     )
     assert res_fresh.passed is True
     assert res_fresh.max_similarity < 50.0
+
