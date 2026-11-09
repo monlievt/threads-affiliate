@@ -7,6 +7,11 @@ import {
   AccountSettingsUpdatePayload,
   AuditLogItem,
   CalendarResponse,
+  CommentGenerateRequest,
+  CommentGenerateResponse,
+  CommentPublishRequest,
+  CommentPublishResponse,
+  CommentsQuotaResponse,
   CSVImportRowError,
   DraftItem,
   FullAutoEligibilityResponse,
@@ -388,4 +393,29 @@ export async function getAuditLogs(
   const q = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
   if (action) q.set("action", action);
   return fetchApi<AuditLogItem[]>(`/api/system/audit-logs?${q.toString()}`);
+}
+
+/**
+ * Value-First Comments (Feature 10) API
+ */
+export async function getCommentsQuota(): Promise<CommentsQuotaResponse> {
+  return fetchApi<CommentsQuotaResponse>("/api/comments/quota");
+}
+
+export async function generateComments(
+  payload: CommentGenerateRequest
+): Promise<CommentGenerateResponse> {
+  return fetchApi<CommentGenerateResponse>("/api/comments/generate", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function publishOrCopyComment(
+  payload: CommentPublishRequest
+): Promise<CommentPublishResponse> {
+  return fetchApi<CommentPublishResponse>("/api/comments/publish", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }

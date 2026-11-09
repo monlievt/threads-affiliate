@@ -381,3 +381,64 @@ export interface AuditLogItem {
   entity_id: string | null;
   detail: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Value-First Comments (Feature 10)
+// ---------------------------------------------------------------------------
+export interface CommentOption {
+  option_id: string;
+  strategy: "insight" | "relate" | "question" | "curator_tip";
+  strategy_label: string;
+  text: string;
+  char_count: number;
+  has_link: boolean;
+  link_url: string | null;
+  safety_valid: boolean;
+  safety_issues: string[];
+}
+
+export interface CommentGenerateRequest {
+  target_post_url: string;
+  target_post_text: string;
+  strategy?: "all" | "insight" | "relate" | "question";
+  niche_id?: string | null;
+  persona_id?: string | null;
+  include_link?: boolean;
+  product_id?: string | null;
+}
+
+export interface CommentGenerateResponse {
+  target_post_url: string;
+  target_post_id: string | null;
+  options: CommentOption[];
+  daily_replies_used: number;
+  daily_replies_limit: number;
+  hard_max_replies: number;
+  remaining_replies_today: number;
+  avoid_list: string[];
+}
+
+export interface CommentPublishRequest {
+  target_post_url: string;
+  selected_text: string;
+  link_url?: string | null;
+  action_type: "publish_api" | "copied_clipboard";
+}
+
+export interface CommentPublishResponse {
+  success: boolean;
+  message: string;
+  action_type: string;
+  threads_reply_id: string | null;
+  daily_replies_used: number;
+  remaining_replies_today: number;
+}
+
+export interface CommentsQuotaResponse {
+  replies_today: number;
+  max_replies_today: number;
+  hard_max_replies: number;
+  remaining_today: number;
+  is_quota_full: boolean;
+  avoid_list: string[];
+}

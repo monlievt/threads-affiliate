@@ -20,6 +20,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.api.auth import router as auth_router
+from app.api.comments import router as comments_router
 from app.api.drafts import router as drafts_router
 from app.api.niches import router as niches_router
 from app.api.oauth import router as oauth_router
@@ -111,3 +112,4 @@ app.include_router(styles_router)
 app.include_router(personas_router)
 app.include_router(drafts_router)
 app.include_router(schedule_router)
+app.include_router(comments_router)
