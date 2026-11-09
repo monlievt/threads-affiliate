@@ -1,4 +1,4 @@
-"""app/schemas/experiments.py — Pydantic schemas for Experiments, Arms, and Allocation (T-042)."""
+"""app/schemas/experiments.py — Pydantic schemas for Experiments, Arms, Allocation, and rule_v1 Evaluation (T-042 & T-043)."""
 
 from __future__ import annotations
 
@@ -84,3 +84,43 @@ class AllocateNextArmResponse(BaseModel):
     has_eligible_arm: bool
     recommended_arm: ExperimentArmResponse | None = None
     reason: str
+
+
+# ---------------------------------------------------------------------------
+# rule_v1 Decision Schemas (T-043)
+# ---------------------------------------------------------------------------
+
+class ArmRuleEvaluationResponse(BaseModel):
+    arm_id: str
+    label: str
+    niche_id: str | None = None
+    niche_name: str | None = None
+    style_id: str | None = None
+    style_name: str | None = None
+    n: int
+    insufficient_data: bool
+    median_views_72: float
+    median_er_72: float
+    click_rate: float | None = None
+    raw_clicks: int = 0
+    score: float
+    rank: int | None = None
+    outliers_views: list[dict[str, Any]] = Field(default_factory=list)
+    outliers_er: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ExperimentEvaluationResponse(BaseModel):
+    experiment_id: str
+    phase: str
+    status: str
+    evaluated_at: str
+    total_arms: int
+    eligible_arms_count: int
+    recommendation: str  # winner_found | no_clear_winner | insufficient_data
+    winner_arm_id: str | None = None
+    winner_arm_label: str | None = None
+    runner_up_arm_id: str | None = None
+    score_ratio: float | None = None
+    recommended_extension_posts: int
+    explanation: str
+    arms: list[ArmRuleEvaluationResponse] = Field(default_factory=list)

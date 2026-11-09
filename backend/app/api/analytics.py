@@ -36,6 +36,7 @@ from app.core.audit import record_audit_log
 from app.core.security import get_current_admin, require_csrf
 from app.db.models import Account, AccountSnapshot, Draft, LinkClick, Post, PostMetric, Product, utc_now_iso
 from app.db.session import get_db
+from app.experiments.weekly_report import generate_weekly_report
 from app.schemas.analytics import (
     AccountSnapshotItem,
     AnalyticsOverviewResponse,
@@ -47,6 +48,7 @@ from app.schemas.analytics import (
     LinkClickListResponse,
     PostMetricItem,
     PublishedPostAnalytics,
+    WeeklyReportResponse,
 )
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -484,3 +486,15 @@ async def delete_link_click(
     )
 
     return {"deleted": True, "id": click_id}
+
+
+@router.get("/weekly-report", response_model=WeeklyReportResponse)
+async def get_weekly_performance_report(
+    days: int = Query(default=7, ge=1, le=30, description="Report window in days"),
+    session: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(get_current_admin),  # noqa: ARG001
+) -> WeeklyReportResponse:
+    """Retrieve full weekly performance summary and rule_v1 experiment recommendations."""
+    report = await generate_weekly_report(session, days_back=days)
+    return WeeklyReportResponse(**report)
+

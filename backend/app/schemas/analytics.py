@@ -109,3 +109,22 @@ class ClickImportResponse(BaseModel):
     attribution_caveat: str
     errors: list[ClickImportRowError] = Field(default_factory=list)
     imported_items: list[LinkClickItem] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Weekly Report Schemas (T-043)
+# ---------------------------------------------------------------------------
+
+class WeeklyReportResponse(BaseModel):
+    period_start: str
+    period_end: str
+    generated_at: str
+    total_posts_published: int
+    total_views: int
+    total_engagements: int
+    average_er_pct: float
+    operator_workload: dict[str, Any]
+    incidents: dict[str, Any]
+    experiments: list[dict[str, Any]] = Field(default_factory=list)
+    suggested_actions: list[str] = Field(default_factory=list)
+

@@ -21,6 +21,7 @@ from app.core.security import get_current_admin, require_csrf
 from app.db.models import Experiment, ExperimentArm
 from app.db.session import get_db
 from app.experiments.allocator import select_next_arm_for_generation
+from app.experiments.rule_v1 import evaluate_experiment_rule_v1
 from app.experiments.service import (
     create_experiment,
     get_experiment_progress,
@@ -28,8 +29,10 @@ from app.experiments.service import (
 )
 from app.schemas.experiments import (
     AllocateNextArmResponse,
+    ArmRuleEvaluationResponse,
     ExperimentArmResponse,
     ExperimentCreate,
+    ExperimentEvaluationResponse,
     ExperimentProgressResponse,
     ExperimentResponse,
     ExperimentUpdate,
@@ -253,3 +256,60 @@ async def allocate_next_arm(
         recommended_arm=arm_resp,
         reason=reason,
     )
+
+
+@router.get("/{experiment_id}/evaluation", response_model=ExperimentEvaluationResponse)
+async def get_experiment_evaluation(
+    experiment_id: str,
+    session: AsyncSession = Depends(get_db),
+    admin: dict[str, Any] = Depends(get_current_admin),  # noqa: ARG001
+) -> ExperimentEvaluationResponse:
+    """Evaluate experiment using rule_v1 decision logic (docs/07 §3)."""
+    try:
+        eval_result = await evaluate_experiment_rule_v1(session, experiment_id)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(err),
+        )
+
+    arms_resp = [
+        ArmRuleEvaluationResponse(
+            arm_id=a.arm_id,
+            label=a.label,
+            niche_id=a.niche_id,
+            niche_name=a.niche_name,
+            style_id=a.style_id,
+            style_name=a.style_name,
+            n=a.n,
+            insufficient_data=a.insufficient_data,
+            median_views_72=a.median_views_72,
+            median_er_72=a.median_er_72,
+            click_rate=a.click_rate,
+            raw_clicks=a.raw_clicks,
+            score=a.score,
+            rank=a.rank,
+            outliers_views=a.outliers_views,
+            outliers_er=a.outliers_er,
+        )
+        for a in eval_result.arms
+    ]
+
+    return ExperimentEvaluationResponse(
+        experiment_id=eval_result.experiment_id,
+        phase=eval_result.phase,
+        status=eval_result.status,
+        evaluated_at=eval_result.evaluated_at,
+        total_arms=eval_result.total_arms,
+        eligible_arms_count=eval_result.eligible_arms_count,
+        recommendation=eval_result.recommendation,
+        winner_arm_id=eval_result.winner_arm_id,
+        winner_arm_label=eval_result.winner_arm_label,
+        runner_up_arm_id=eval_result.runner_up_arm_id,
+        score_ratio=eval_result.score_ratio,
+        recommended_extension_posts=eval_result.recommended_extension_posts,
+        explanation=eval_result.explanation,
+        arms=arms_resp,
+    )
+
+

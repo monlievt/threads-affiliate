@@ -237,33 +237,14 @@ async def handle_report(
     chat_id: int | str,
     session: AsyncSession,
 ) -> HandlerResponse:
-    """Handle /report command — daily performance summary."""
+    """Handle /report command — weekly performance summary with rule_v1 evaluation."""
     if not await is_authorized_admin_chat(chat_id, session, action_attempted="/report"):
         return HandlerResponse(text="⛔ Unauthorized.")
 
-    today_prefix = utc_now_iso()[:10]
+    from app.experiments.weekly_report import format_weekly_report_telegram, generate_weekly_report
 
-    # Published posts today
-    pub_res = await session.execute(
-        select(func.count(Post.id)).where(Post.published_at.like(f"{today_prefix}%"))
-    )
-    published_count = pub_res.scalar_one() or 0
-
-    # Failed drafts today
-    fail_res = await session.execute(
-        select(func.count(Draft.id)).where(
-            Draft.status.in_(["failed", "failed_permanent"]),
-            Draft.updated_at.like(f"{today_prefix}%"),
-        )
-    )
-    failed_count = fail_res.scalar_one() or 0
-
-    text = (
-        f"📋 <b>Daily Report</b> ({today_prefix})\n\n"
-        f"• <b>Posts Published:</b> {published_count}\n"
-        f"• <b>Publish Failures:</b> {failed_count}\n"
-        f"• <b>System Health:</b> Normal"
-    )
+    report_data = await generate_weekly_report(session, days_back=7)
+    text = format_weekly_report_telegram(report_data)
     return HandlerResponse(text=text)
 
 

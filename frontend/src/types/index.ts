@@ -543,4 +543,69 @@ export interface AllocateNextArmResponse {
   reason: string;
 }
 
+// ---------------------------------------------------------------------------
+// rule_v1 Evaluation & Weekly Report (T-043)
+// ---------------------------------------------------------------------------
+
+export interface ArmRuleEvaluationItem {
+  arm_id: string;
+  label: string;
+  niche_id: string | null;
+  niche_name: string | null;
+  style_id: string | null;
+  style_name: string | null;
+  n: number;
+  insufficient_data: boolean;
+  median_views_72: number;
+  median_er_72: number;
+  click_rate: number | null;
+  raw_clicks: number;
+  score: number;
+  rank: number | null;
+  outliers_views: Array<Record<string, any>>;
+  outliers_er: Array<Record<string, any>>;
+}
+
+export interface ExperimentEvaluationResponse {
+  experiment_id: string;
+  phase: string;
+  status: string;
+  evaluated_at: string;
+  total_arms: number;
+  eligible_arms_count: number;
+  recommendation: "winner_found" | "no_clear_winner" | "insufficient_data";
+  winner_arm_id: string | null;
+  winner_arm_label: string | null;
+  runner_up_arm_id: string | null;
+  score_ratio: number | null;
+  recommended_extension_posts: number;
+  explanation: string;
+  arms: ArmRuleEvaluationItem[];
+}
+
+export interface WeeklyReportResponse {
+  period_start: string;
+  period_end: string;
+  generated_at: string;
+  total_posts_published: number;
+  total_views: number;
+  total_engagements: number;
+  average_er_pct: number;
+  operator_workload: {
+    drafts_created_this_period: number;
+    approved: number;
+    rejected: number;
+    current_pending_queue: number;
+  };
+  incidents: {
+    total_incidents: number;
+    unresolved_count: number;
+    critical_count: number;
+    recent_incidents: Array<Record<string, any>>;
+  };
+  experiments: Array<Record<string, any>>;
+  suggested_actions: string[];
+}
+
+
 

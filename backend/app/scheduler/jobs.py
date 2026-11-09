@@ -106,3 +106,16 @@ async def job_collect_post_metrics(
     except Exception as exc:
         log.error("Error running metrics collection job", error=str(exc))
         return {"error": str(exc)}
+
+
+async def job_generate_weekly_report(
+    session: AsyncSession,
+) -> dict[str, Any]:
+    """Periodic job: generates weekly report and rule_v1 evaluation."""
+    from app.experiments.weekly_report import generate_weekly_report
+    try:
+        return await generate_weekly_report(session, days_back=7)
+    except Exception as exc:
+        log.error("Error generating weekly report", error=str(exc))
+        return {"error": str(exc)}
+
