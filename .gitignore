@@ -1,47 +1,75 @@
-# Secrets & local overrides
-.env
-.env.local
-.env.*.local
+# ===========================================================================
+# THREADS AFFILIATE AUTOMATION — .gitignore
+# ===========================================================================
 
-# Data directory (SQLite + WAL files)
+# --- 1. SECRETS & LOCAL ENVIRONMENT (MUTLAK JANGAN DIUPLOAD) ---
+.env
+.env.*
+*.env
+!.env.example
+
+# --- 2. DATABASE & OPERATIONAL DATA (FAIL-CLOSED SAFETY) ---
 data/
-backup/
 *.db
 *.db-wal
 *.db-shm
 *.db.sha256
+*.sqlite
+*.sqlite3
+backup/
+backups/
 
-# Python
+# --- 3. LOGS & RUNTIME SCRATCH ---
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- 4. PYTHON / VIRTUAL ENVIRONMENTS ---
 __pycache__/
 *.py[cod]
 *$py.class
 *.pyo
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-*.egg-info/
-dist/
-build/
+*.pyd
 .venv/
 venv/
 env/
+ENV/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
-# Node / Next.js
+# --- 5. NODE.JS & NEXT.JS BUILD ARTIFACTS ---
 node_modules/
 .next/
 out/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+*.tsbuildinfo
+playwright-report/
+test-results/
 
-# macOS
+# --- 6. OPERATING SYSTEM ARTIFACTS ---
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# IDE
+# --- 7. IDE & EDITORS ---
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 
-# Alembic (generated)
+# --- 8. MIGRATIONS & GENERATED CODE ---
 backend/app/db/migrations/versions/
