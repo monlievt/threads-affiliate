@@ -444,6 +444,65 @@ export interface CommentsQuotaResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Analytics & Metrics (T-040)
+// ---------------------------------------------------------------------------
+
+export interface PostMetricItem {
+  id: string;
+  age_bucket: string;
+  captured_at: string;
+  views: number;
+  likes: number;
+  replies: number;
+  reposts: number;
+  quotes: number;
+}
+
+export interface PublishedPostAnalytics {
+  post_id: string;
+  draft_id: string;
+  threads_media_id: string | null;
+  permalink: string | null;
+  published_at: string;
+  text_snippet: string;
+  niche_name: string | null;
+  style_name: string | null;
+  product_title: string | null;
+  latest_views: number;
+  latest_likes: number;
+  latest_replies: number;
+  latest_reposts: number;
+  metrics: PostMetricItem[];
+}
+
+export interface AnalyticsOverviewResponse {
+  total_posts_published: number;
+  total_views: number;
+  total_likes: number;
+  total_replies: number;
+  total_reposts: number;
+  total_quotes: number;
+  bucket_totals: Record<string, Record<string, number>>;
+  recent_posts: PublishedPostAnalytics[];
+}
+
+export interface AccountSnapshotItem {
+  id: string;
+  captured_at: string;
+  followers: number | null;
+  profile_views: number | null;
+}
+
+export interface CollectMetricsResponse {
+  success: boolean;
+  posts_evaluated: number;
+  metrics_saved: number;
+  posts_failed: number;
+  buckets_processed: Record<string, number>;
+  snapshot_id: string | null;
+}
+
+// ---------------------------------------------------------------------------
 // Link Clicks & Benable Import (T-041)
 // ---------------------------------------------------------------------------
 

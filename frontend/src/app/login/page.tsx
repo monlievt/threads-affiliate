@@ -19,7 +19,7 @@ export default function LoginPage() {
 
     try {
       await loginApi({ username, password });
-      router.push("/review");
+      window.location.href = "/review";
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

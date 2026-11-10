@@ -1,13 +1,23 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, ShieldAlert, Cpu, Activity, Clock } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Cpu, Activity, Clock, LogOut } from "lucide-react";
 import { useSystemHealth, useKillSwitch } from "@/hooks/useSystemStatus";
+import { logoutApi } from "@/lib/api";
 import KillSwitchButton from "@/components/safety/KillSwitchModal";
 
 export default function Header() {
   const { data: health, isLoading: healthLoading } = useSystemHealth();
   const { data: killSwitch } = useKillSwitch();
+
+  const handleLogout = async () => {
+    try {
+      await logoutApi();
+    } catch {
+      // ignore
+    }
+    window.location.href = "/login";
+  };
 
   const isPaused = killSwitch?.active ?? (health?.kill_switch === "on");
   const isHealthy = health?.status === "ok" && !isPaused;
@@ -67,6 +77,16 @@ export default function Header() {
 
           {/* Emergency Kill Switch Button (always visible, <= 5s effective) */}
           <KillSwitchButton />
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            title="Keluar dari akun admin"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-600 hover:border-rose-300 dark:hover:text-rose-400 dark:hover:border-rose-900 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Keluar</span>
+          </button>
         </div>
       </div>
     </header>

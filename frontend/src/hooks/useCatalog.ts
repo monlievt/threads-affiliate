@@ -201,3 +201,23 @@ export function useArchivePersona() {
     },
   });
 }
+
+export function useCatalog() {
+  const nichesQuery = useNiches();
+  const stylesQuery = useStyles();
+  const productsQuery = useProducts();
+  const personasQuery = usePersonas();
+
+  return {
+    niches: nichesQuery.data || [],
+    styles: stylesQuery.data || [],
+    products: productsQuery.data || [],
+    personas: personasQuery.data || [],
+    isLoading:
+      nichesQuery.isLoading ||
+      stylesQuery.isLoading ||
+      productsQuery.isLoading ||
+      personasQuery.isLoading,
+  };
+}
+
